@@ -1,8 +1,8 @@
 /// The decoder's purpose is to take OPCODE and translate it to the appropriate instruction.
 // https://www.masswerk.at/6502/6502_instruction_set.html
 
-use log::{warn, info};
-
+/// All possible CPU instructions. This is written like in 6502 assembler.
+#[derive(PartialEq)]
 pub enum Instructions {
 	ADC, // add with carry
 	AND, // and (with accumulator)
@@ -62,12 +62,37 @@ pub enum Instructions {
 	TYA  // transfer Y to accumulator
 }
 
-pub fn decode_opcode(opcode: u8) -> Instructions {
+/// Taken from wikipedia.org
+#[derive(PartialEq)]
+pub enum AddressingMode {
+	IMPLIED, 		// 1 byte
+	ABSOLUTE, 		// 3 bytes
+	INDEXED, 		// 3 bytes
+	ZEROPAGE, 		// 2 bytes
+	RELATIVE, 		// 2 bytes
+	ACCUMULATOR, 	// 1 byte
+	INDIRECTX, 		// 2 bytes
+	INDIRECTY, 		// 2 bytes
+	IMMEDIATE , 	// 2 bytes
+}
+
+/// Decode CPU instruction, probably from ROM or something. \
+/// Returns the Instruction (like in assembly), Addressing Mode, Bytes, Cycles.
+pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8) {
+	// No need to deconstruct the opcode into this, since we can match all 255 possible opcodes with hex anyway.
+	// let CC = opcode & 0b11;				// define the opcode
+	// let BBB = (opcode >> 2) & 0b111;	// defines addressing mode
+	// let AAA = (opcode >> 5) & 0b111;	// define the opcode
+
+	println!("Test");
+
 	match opcode {
-		0x18 => Instructions::CLC,
+		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 1, 2),
+		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 1, 2),
+
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
-			panic!("Could not decode legal instruction, opcode: {}", opcode);
+			panic!("Could not decode instruction, opcode: {}", opcode);
 		}
 	}
 }	
@@ -75,11 +100,12 @@ pub fn decode_opcode(opcode: u8) -> Instructions {
 #[cfg(test)]
 mod tests {
     use super::decode_opcode;
+	use super::Instructions;
+	use super::AddressingMode;
 
     #[test]
 	fn test_decoder() {
-		//decode_opcode(0b0110_1001);
-		decode_opcode(0x18);
-		decode_opcode(0x19);
+		let result = decode_opcode(0x18); 		// Clear Carry Flag
+		assert!(result.0 == Instructions::CLC && result.1 == AddressingMode::IMPLIED && result.2 == 1 && result.3 == 2);
 	}
 }

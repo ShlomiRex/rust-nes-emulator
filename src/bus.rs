@@ -1,11 +1,16 @@
-/// 2 bytes address
-pub type Address = u16;
+use crate::ram::{RAM, ROM};
 
-#[allow(non_snake_case)]
+/// Bus is like a container that glue every component together, like on the motherboard.
 pub struct Bus {
-	pub RAM: Box<[u8; 65_536]>
+	pub ram: RAM,
+	pub rom: ROM		// NOTE: The ROM can be as large as 8MB. For now, its 64kb just so I have MVP (minimal viable product).
 }
 
 impl Bus {
-
+	pub fn new() -> Self {
+		Bus { 
+			ram: RAM::new(), 
+			rom: ROM::new() 
+		}
+	}
 }

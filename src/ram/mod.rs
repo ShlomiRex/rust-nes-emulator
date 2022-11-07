@@ -2,8 +2,12 @@ pub struct RAM {
 	ram: Box<[u8; 65_536]>
 }
 
+pub struct ROM {
+	rom: Box<[u8; 65_536]>
+}
+
 impl RAM {
-	pub fn new() -> RAM {
+	pub fn new() -> Self {
 		RAM { ram: Box::new([0; 65536]) }
 	}
 
@@ -15,6 +19,17 @@ impl RAM {
 	/// Read from RAM address
 	pub fn read(&self, addr: u16) -> u8 {
 		self.ram[addr as usize] //Address is 2 bytes, usize is 64 bits on x64 and 32 bits on x86, so it never overflows, so casting is no problem.
+	}
+}
+
+impl ROM {
+	pub fn new() -> Self {
+		ROM { rom: Box::new([0; 65536]) }
+	}
+
+	/// Read from RAM address
+	pub fn read(&self, addr: u16) -> u8 {
+		self.rom[addr as usize] //Address is 2 bytes, usize is 64 bits on x64 and 32 bits on x86, so it never overflows, so casting is no problem.
 	}
 }
 

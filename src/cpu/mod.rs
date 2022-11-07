@@ -3,6 +3,8 @@ mod decoder;
 
 pub use registers::Registers;
 
+use crate::bus::Bus;
+
 
 /// # 8-bit databus
 /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
@@ -17,19 +19,35 @@ struct NonMaskableInterruptSignal;
 struct SetOverflowSignal;
 
 pub struct CPU {
-	registers: Registers
+	registers: Registers,
+	bus: Box<Bus>
 }
 
 impl CPU {
-	pub fn new() -> Self {
+	pub fn new(bus: Box<Bus>) -> Self {
 		let registers: Registers = Registers::default();
 		CPU {
-			registers
+			registers,
+			bus
 		}
 	}
 
-	fn decode_opcode(&self, opcode: u8) {
-		decoder::decode_opcode(opcode);
+	/// A single clock cycle is executed here.
+	fn clock_tick(&self) {
+		//TODO: Complete
+
+		// Read next instruction.
+		let opcode = self.bus.rom.read(self.registers.PC); // Read at address of Program Counter (duh!)
+		let instruction = decoder::decode_opcode(opcode);
+		
+	}
+
+	fn nmi_interrupt(&self) {
+		//TODO: Complete
+	}
+
+	fn irq_interrupt(&self) {
+		//TODO: Complete
 	}
 }
 
@@ -37,10 +55,12 @@ impl CPU {
 mod tests {
     use super::*;
 	use registers::ProcessorStatusRegisterBits::*;
+	use crate::bus::Bus;
 
     #[test]
     fn processor_status_register_test() {
-		let mut cpu = CPU::new();
+		let bus: Bus = Bus::new();
+		let mut cpu = CPU::new(Box::new(bus));
 
 		assert!(cpu.registers.P.get(CARRY) == false);
 		cpu.registers.P.set(CARRY, true);
