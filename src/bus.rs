@@ -1,4 +1,4 @@
-use crate::ram::{RAM, ROM};
+use crate::memory::{RAM, ROM};
 
 /// Bus is like a container that glue every component together, like on the motherboard.
 pub struct Bus {

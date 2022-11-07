@@ -1,6 +1,6 @@
 mod cpu;
 mod bus;
-mod ram;
+mod memory;
 
 // https://web.archive.org/web/20210803073202/http://www.obelisk.me.uk/6502/architecture.html
 // Zero page: 0x0000 - 0x00FF : is the focus of a number of special addressing modes that result in shorter (and quicker) instructions or allow indirect access to the memory (256 bytes of memory)
