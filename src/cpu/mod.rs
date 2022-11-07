@@ -1,5 +1,8 @@
 mod registers;
+mod decoder;
+
 pub use registers::Registers;
+
 
 /// # 8-bit databus
 /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
@@ -23,6 +26,10 @@ impl CPU {
 		CPU {
 			registers
 		}
+	}
+
+	fn decode_opcode(&self, opcode: u8) {
+		decoder::decode_opcode(opcode);
 	}
 }
 
