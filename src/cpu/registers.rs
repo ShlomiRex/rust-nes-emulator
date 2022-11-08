@@ -45,7 +45,8 @@ pub enum ProcessorStatusRegisterBits {
 }
 
 use ProcessorStatusRegisterBits::*;
-// TODO: Its possible this will slow down the CPU, because its called almsot each cycle.
+// TODO: Its possible this will slow down the CPU, because its called almost each cycle.
+// Maybe I can give the enum a constant value, so I don't need to ask if-questions. But for now I don't care about that.
 impl ProcessorStatusRegisterBits {
 	fn value(&self) -> usize {
 		match *self {
@@ -85,5 +86,27 @@ impl ProcessorStatusRegister {
 impl fmt::Display for ProcessorStatusRegister {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NV-BDIZC {:0<8b}", self.flags)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn processor_status_register_test() {
+		let mut registers = Registers::default();
+
+		assert!(registers.P.get(CARRY) == false);
+		registers.P.set(CARRY, true);
+		assert!(registers.P.get(CARRY) == true);
+
+		assert!(registers.P.get(NEGATIVE) == false);
+		registers.P.set(NEGATIVE, true);
+		assert!(registers.P.get(NEGATIVE) == true);
+		registers.P.set(NEGATIVE, false);
+		assert!(registers.P.get(NEGATIVE) == false);
+		registers.P.set(NEGATIVE, false);
+		assert!(registers.P.get(NEGATIVE) == false);
     }
 }
