@@ -65,7 +65,20 @@ pub enum Instructions {
 	TYA  // transfer Y to accumulator
 }
 
-/// Taken from wikipedia.org
+/// Taken from wikipedia.org \
+/// After further reading here: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
+/// 
+/// | Mode | Description |
+/// |---|---|
+/// | IMPLIED |  |
+/// | ABSOLUTE |  |
+/// | INDEXED |  |
+/// | ZEROPAGE |  |
+/// | RELATIVE |  |
+/// | ACCUMULATOR |  |
+/// | INDIRECTX |  |
+/// | INDIRECTY |  |
+/// | IMMEDIATE | Data defined in next byte after opcode |
 #[derive(PartialEq, Debug)]
 pub enum AddressingMode {
 	IMPLIED, 		// 1 byte

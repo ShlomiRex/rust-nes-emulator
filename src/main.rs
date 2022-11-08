@@ -23,7 +23,7 @@ use memory::{ROM, RAM};
 /// Returns the amount of assembly lines / code written in ROM.
 fn populate_rom_with_subroutine_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
 	rom_memory[0] 	= 0xA0; //LDY #$00
-	rom_memory[1] 	= 0x00; 	
+	rom_memory[1] 	= 0x00;
 	rom_memory[2] 	= 0xB1;	//LDA (SRC),Y
 	rom_memory[3] 	= 0x80;
 	rom_memory[4] 	= 0xF0;	//BEQ DONE
@@ -39,7 +39,7 @@ fn populate_rom_with_subroutine_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
 	rom_memory[14] 	= 0x09; //ORA #%00100000
 	rom_memory[15] 	= 0x20;
 	rom_memory[16] 	= 0x91; //STA (DST),Y
-	rom_memory[17] 	= 0x82; 
+	rom_memory[17] 	= 0x82;
 	rom_memory[18] 	= 0xC8; //INY
 	rom_memory[19] 	= 0xD0; //BNE LOOP
 	rom_memory[20] 	= 0xED;

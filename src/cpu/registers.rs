@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// # CPU Registers
 /// (Chip: 6502), wikipedia: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
 #[derive(Default)]
@@ -9,6 +11,12 @@ pub struct Registers {
 	pub P: ProcessorStatusRegister, 	//processor status flag bits
 	pub S: u8, 							//stack pointer
 	pub PC: u16, 						//program counter
+}
+
+impl fmt::Display for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "A:{},\tX:{},\tY:{},\tS:{},\tPC: {},\tP: {}", self.A, self.X, self.Y, self.S, self.PC, self.P)
+    }
 }
 
 /// # Processor Status Register
@@ -72,4 +80,10 @@ impl ProcessorStatusRegister {
 		let index = bit.value();
 		self.flags & (1 << index) != 0
 	}
+}
+
+impl fmt::Display for ProcessorStatusRegister {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NV-BDIZC {:0<8b}", self.flags)
+    }
 }
