@@ -91,17 +91,16 @@ pub enum AddressingMode {
 /// | BranchOccursOn     | add 2 to cycles if branch occurs on same page <br> or add 2 to cycles if branch occurs to different page |
 /// 
 /// 
-#[derive(Debug)]
-pub enum CycleWare {
+pub enum CyclesMutations {
 	NONE,
 	PageBoundryCrossed,
 	BranchOccursOn
 }
 
-impl fmt::Display for CycleWare {
+impl fmt::Display for CyclesMutations {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
-			CycleWare::NONE => write!(f, "No"),
+			CyclesMutations::NONE => write!(f, "No"),
 			_=> write!(f, "Yes")
 		}
     }
@@ -109,18 +108,27 @@ impl fmt::Display for CycleWare {
 
 /// Decode CPU instruction, probably from ROM or something. \
 /// Returns the Instruction (like in assembly), Addressing Mode, Bytes, Cycles.
-pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CycleWare) {
+pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CyclesMutations) {
 	// No need to deconstruct the opcode into this, since we can match all 255 possible opcodes with hex anyway.
 	// let CC = opcode & 0b11;				// define the opcode
 	// let BBB = (opcode >> 2) & 0b111;	// defines addressing mode
 	// let AAA = (opcode >> 5) & 0b111;	// define the opcode
 
 	match opcode {
-		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 		1, 2, CycleWare::NONE),
-		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 		1, 2, CycleWare::NONE),
-		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 		2, 2, CycleWare::NONE),
-		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 		2, 5, CycleWare::PageBoundryCrossed),
-
+		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
+		0x09 => (Instructions::ORA, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
+		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
+		0x38 => (Instructions::SEC, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
+		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 	1, 6, CyclesMutations::NONE),
+		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
+		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 	2, 6, CyclesMutations::NONE),
+		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
+		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
+		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 	2, 5, CyclesMutations::PageBoundryCrossed),
+		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
+		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
+		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
+		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
 			error!("Could not decode instruction, opcode: {:#X}", opcode);

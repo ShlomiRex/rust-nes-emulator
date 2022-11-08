@@ -5,7 +5,7 @@ use log::{debug};
 
 use registers::Registers;
 use crate::bus::Bus;
-use decoder::CycleWare;
+use decoder::CyclesMutations;
 
 /// # 8-bit databus
 /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
@@ -35,8 +35,6 @@ impl CPU {
 
 	/// A single clock cycle is executed here.
 	pub fn clock_tick(&mut self) {
-		//TODO: Complete
-
 		// Read next instruction.
 		let opcode = self.bus.rom.read(self.registers.PC); // Read at address of Program Counter (duh!)
 		let instruction = decoder::decode_opcode(opcode);
@@ -45,28 +43,30 @@ impl CPU {
 		let addrmode = instruction.1;
 		let bytes = instruction.2;
 		let cycles = instruction.3;
-		let cycle_ware = instruction.4;
+		let cycles_mut = instruction.4;
 
-		debug!("{:?} {:?} Bytes: {}, Cycles: {}, Cycles mut: {:?}", instr, addrmode, bytes, cycles, cycle_ware);
+		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Cycles mut: {}", opcode, instr, addrmode, bytes, cycles, cycles_mut);
 
-		// Continue the program counter
-		match cycle_ware {
-			CycleWare::NONE => { 
-				self.registers.PC += bytes as u16; 
+		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
+		self.registers.PC += bytes as u16; 
+
+		match cycles_mut {
+			CyclesMutations::NONE => { 
+				// don't change amount of cycles.
 			},
-			CycleWare::PageBoundryCrossed => { 
+			CyclesMutations::PageBoundryCrossed => { 
 				//TODO: Impliment. For now, I don't change amount of cycles.
+
 				//add 1 to cycles if page boundary is crossed
-				self.registers.PC += bytes as u16; 
 			},
-			CycleWare::BranchOccursOn => {
+			CyclesMutations::BranchOccursOn => {
 				//TODO: Impliment. For now, I don't change amount of cycles.
+
 				//add 1 to cycles if branch occurs on same page
 				//add 2 to cycles if branch occurs to different page
-				self.registers.PC += bytes as u16;
 			}
 		}
-				
+		debug!("PC: {}", self.registers.PC);
 	}
 
 	fn nmi_interrupt(&self) {
@@ -74,6 +74,10 @@ impl CPU {
 	}
 
 	fn irq_interrupt(&self) {
+		//TODO: Complete
+	}
+
+	fn reset_interrupt(&self) {
 		//TODO: Complete
 	}
 }

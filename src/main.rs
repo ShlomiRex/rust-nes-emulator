@@ -15,18 +15,51 @@ use memory::{ROM, RAM};
 // Stack: 	  0x0100 - 0x01FF : is reserved for the system stack and which cannot be relocated. (256 bytes of stack!)
 // Reserved memory: 0xFFFA - 0xFFFF (last 6 bytes) : must be programmed with the addresses of the non-maskable interrupt handler ($FFFA/B), the power on reset location ($FFFC/D) and the BRK/interrupt request handler ($FFFE/F) respectively.
 
+
+
+/// This will populate the ROM with TOLOWER subroutine. \
+/// The TOLOWER routine is described here: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers \
+/// "which copies a null-terminated character string from one location to another, converting upper-case letter characters to lower-case letters."
+/// Returns the amount of assembly lines / code written in ROM.
+fn populate_rom_with_subroutine_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
+	rom_memory[0] 	= 0xA0; //LDY #$00
+	rom_memory[1] 	= 0x00; 	
+	rom_memory[2] 	= 0xB1;	//LDA (SRC),Y
+	rom_memory[3] 	= 0x80;
+	rom_memory[4] 	= 0xF0;	//BEQ DONE
+	rom_memory[5] 	= 0x11;
+	rom_memory[6] 	= 0xC9;	//CMP #'A'
+	rom_memory[7] 	= 0x41;
+	rom_memory[8] 	= 0x90;	//BCC SKIP
+	rom_memory[9] 	= 0x06;
+	rom_memory[10] 	= 0xC9;	//CMP #'Z'+1
+	rom_memory[11] 	= 0x58;
+	rom_memory[12] 	= 0xB0; //BCS SKIP
+	rom_memory[13] 	= 0x02;
+	rom_memory[14] 	= 0x09; //ORA #%00100000
+	rom_memory[15] 	= 0x20;
+	rom_memory[16] 	= 0x91; //STA (DST),Y
+	rom_memory[17] 	= 0x82; 
+	rom_memory[18] 	= 0xC8; //INY
+	rom_memory[19] 	= 0xD0; //BNE LOOP
+	rom_memory[20] 	= 0xED;
+	rom_memory[21] 	= 0x38; //SEC
+	rom_memory[22] 	= 0x60; //RTS
+	rom_memory[23] 	= 0x91; //STA (DST),Y
+	rom_memory[24] 	= 0x82;
+	rom_memory[25] 	= 0x18; //CLC
+	rom_memory[26] 	= 0x60; //RTS
+
+	16
+}
+
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
 	// Here we can write to ROM memory and modify the instructions to execute.
 	// The example here is from wiki page: https://en.wikipedia.org/wiki/MOS_Technology_6502
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
-	rom_memory[0] = 0xA0;
-	rom_memory[1] = 0x00;
-	rom_memory[2] = 0xB1;
-	rom_memory[3] = 0x80;
-	rom_memory[4] = 0xF0;
-	rom_memory[5] = 0x11;
+	let assembly_lines_amount = populate_rom_with_subroutine_tolower(&mut rom_memory);
 	
 
 	let a = Box::new(rom_memory);
@@ -37,9 +70,7 @@ fn main() {
 	let bus = Box::new(Bus::new(rom));
 	let mut cpu = CPU::new(bus);
 
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
+	for _ in 0..assembly_lines_amount {
+		cpu.clock_tick();
+	}
 }
