@@ -9,6 +9,7 @@ use registers::Registers;
 use crate::bus::Bus;
 use crate::cpu::decoder::AddressingMode;
 use decoder::{CyclesMutations, Instructions};
+use registers::ProcessorStatusRegisterBits;
 
 // /// # 8-bit databus
 // /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
@@ -73,19 +74,34 @@ impl CPU {
 			}
 		}
 
-		//Fetch the needed memory for the instruction
-		let fetched_memory = match addrmode {
-			AddressingMode::IMMEDIATE => {
-				self.fetch_immediate()
-			}
+		fn panic_addressing_mode_unsupported(addrmode: AddressingMode) {
+			error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
+			panic!();
+		}
+
+		// Here we allowed to cast u8 to u16 because its the Address bus. The CPU only supports address bus of 16 signals (bits).
+		let fetched_memory: u16 = match addrmode {
+			AddressingMode::ABSOLUTE => self.fetch_absolute(),
+			AddressingMode::RELATIVE => self.fetch_relative(),
+			AddressingMode::IMMEDIATE => self.fetch_immediate() as u16,
 			// AddressingMode::INDIRECTY => {
 			// 	self.fetch_indirect_y()
 			// }
+			AddressingMode::ACCUMULATOR => self.fetch_accumulator() as u16,
+			// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
+			AddressingMode::IMPLIED => 0,
 			_ => {
-				error!("Address mode: {:?} is currently not implemented", addrmode);
+				panic_addressing_mode_unsupported(addrmode);
 				panic!();
 			}
 		};
+
+		// After each instruction, the P register may change, depending on the instruction.
+		// The instruction sets the desired bit flag to change, and after execution, the CPU checks and modifies the P register.
+		// Each vector contains 0 or more bits to modify/set/clear and so on.
+		let mut p_modify: Vec<ProcessorStatusRegisterBits> = Vec::new();
+		let mut p_clear: Vec<ProcessorStatusRegisterBits> = Vec::new();
+		let mut p_set: Vec<ProcessorStatusRegisterBits> = Vec::new();
 
 		//The main brains of the CPU. Execute instruction.
 		//TODO: optimize order of matching
@@ -93,11 +109,17 @@ impl CPU {
 		match instr {
 			Instructions::LDY => {
 				// Load Index Y with Memory
-				self.registers.Y = fetched_memory;
+				self.registers.Y = fetched_memory as u8;
+
+				p_modify.push(ProcessorStatusRegisterBits::ZERO);
+				p_modify.push(ProcessorStatusRegisterBits::NEGATIVE);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
-				self.registers.A = fetched_memory;
+				self.registers.A = fetched_memory as u8;
+
+				p_modify.push(ProcessorStatusRegisterBits::ZERO);
+				p_modify.push(ProcessorStatusRegisterBits::NEGATIVE);
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -105,8 +127,33 @@ impl CPU {
 			}
 		}
 
+		// Modify P register.
+
+		for p_bit in p_clear {
+			self.registers.P.set(p_bit, false);
+		}
+		for p_bit in p_set {
+			self.registers.P.set(p_bit, true);
+		}
+		for p_bit in p_modify {
+			match p_bit {
+				ProcessorStatusRegisterBits::ZERO => { 
+					// If memory is 0, zero flag is 1
+					self.registers.P.set(p_bit, fetched_memory == 0); 
+				}
+				ProcessorStatusRegisterBits::NEGATIVE => { 
+					// If last bit (7) is 1, its negative
+					self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (fetched_memory >> 7) == 1);
+				}
+				_ => {
+					panic!("The P bit to modify is unsupported: {:?}", p_bit);
+				}
+			}
+		}
+
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
+		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
 		self.registers.PC += bytes as u16;
 
 		self.cycles += 1;
@@ -119,6 +166,44 @@ impl CPU {
 	fn fetch_immediate(&self) -> u8 {
 		let res = self.bus.rom.read(self.registers.PC + 1);
 		debug!("Fetched immediate: {}", res);
+		res
+	}
+
+	/// Fetch memory from accumulator.
+	fn fetch_accumulator(&self) -> u8 {
+		let res = self.registers.A;
+		debug!("Fetched accumulator: {}", res);
+		res
+	}
+
+	fn processor_status_flag_modified(&self, bit: ProcessorStatusRegisterBits) {
+
+	}
+
+	/// Fetch memory from the next 2 bytes of the instruction. (after opcode)
+	/// The memory is 2 bytes because this is the address size in 6502.
+	fn fetch_absolute(&self) -> u16 {
+		let msb = self.bus.rom.read(self.registers.PC + 1) as u16;
+		let lsb = self.bus.rom.read(self.registers.PC + 2) as u16;
+		// We need to convert two u8 to one u16, and use most significant bits and least significant bits.
+		let res = (msb << 4) | lsb;
+		debug!("Fetched absolute: {:X}", res);
+		res
+	}
+
+	/// Relative addressing is PC + offset.
+	/// The offset is the next byte after opcode.
+	/// So we fetch the next byte (after opcode) and add it with PC.
+	/// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
+	fn fetch_relative(&self) -> u16 {
+		let pc = self.registers.PC;
+		let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
+		// Here we need a way to add 'u16' type with 'i8' type.
+		// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
+		// Its very complex to do this manually, without this feature. So what the hell.
+		let res = pc.wrapping_add_signed(offset as i16);
+
+		debug!("Fetched relative: {}", res);
 		res
 	}
 
@@ -139,3 +224,14 @@ impl CPU {
 	}
 }
 
+/// After each instruction, the bitflags of P register will change.
+/// For each bit flag, the change can be: 
+/// NONE (no change), MODIFIED (modified), SET (set the bit to 1), CLEARED (set the bit to 0), M6 (memory bit 6), M7 (memory bit 7)
+enum P_BitFlag_Operation {
+	NONE,
+	MODIFIED,
+	SET,
+	CLEAR,
+	M6,
+	M7
+}

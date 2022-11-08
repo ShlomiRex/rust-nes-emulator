@@ -4,9 +4,19 @@ This is my attempt to create basic NES emulator in Rust.
 
 My goal is to not to look at other's code, but to understand on the high-level the NES architecture and create it in Rust.
 
-I'm also will be using minimal crates (libraries), so its easy to understand. (Rendering libraries are a must, but bitwise crates are not needed)
-
 I intend to use SDL2 for rendering.
+
+# Note: nightly rust channel
+
+Currently, the CPU is quite complex. It uses binary arithmetic with multiple integer types. Its just a requirement.
+
+Because of that, and limited time, I chosen to go with nightly rust channel, because it has the features to work with mixed integer types.
+
+Specifically: `mixed_integer_ops`.
+
+So you must use nightly rust. To do so:
+
+`rustup install nightly`
 
 # Resources
 

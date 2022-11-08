@@ -1,3 +1,5 @@
+#![feature(mixed_integer_ops)]
+
 use simple_logger::SimpleLogger;
 use log::{error, warn, debug, info};
 

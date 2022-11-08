@@ -33,6 +33,7 @@ impl fmt::Display for Registers {
 /// | 1 | Z | Zero |
 /// | 0 | C | Carry |
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub enum ProcessorStatusRegisterBits {
 	CARRY,
 	ZERO,
@@ -85,7 +86,7 @@ impl ProcessorStatusRegister {
 
 impl fmt::Display for ProcessorStatusRegister {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NV-BDIZC {:0<8b}", self.flags)
+        write!(f, "NV-BDIZC {:08b}", self.flags)
     }
 }
 
@@ -109,4 +110,16 @@ mod tests {
 		registers.P.set(NEGATIVE, false);
 		assert!(registers.P.get(NEGATIVE) == false);
     }
+
+	#[test]
+	fn p_register_format_test() {
+		// I had trouble with format. But someone helped me: https://www.reddit.com/r/learnrust/comments/ypyquy/format_u8_to_display_binary_without_0b_and_with/
+		let mut p = ProcessorStatusRegister { flags: 0 };
+
+		p.flags = 0b1100_0110;
+		assert_eq!(format!("{p}"), "NV-BDIZC 11000110");
+
+		p.flags = 0b0000_0010;
+		assert_eq!(format!("{p}"), "NV-BDIZC 00000010");
+	}
 }

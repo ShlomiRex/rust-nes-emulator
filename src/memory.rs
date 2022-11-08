@@ -7,7 +7,7 @@ pub struct RAM {
 }
 
 pub struct ROM {
-	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big. For now I leave it at 64kb.
+	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
 }
 
 impl RAM {
@@ -33,6 +33,7 @@ impl ROM {
 		ROM { rom }
 	}
 	
+	//TODO: Maybe convert to inline? This function can be called millions of times a second!
 	pub fn read(&self, addr: u16) -> u8 {
 		self.rom[addr as usize]
 	}
