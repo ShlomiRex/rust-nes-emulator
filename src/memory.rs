@@ -7,7 +7,7 @@ pub struct RAM {
 }
 
 pub struct ROM {
-	rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big. For now I leave it at 64kb.
+	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big. For now I leave it at 64kb.
 }
 
 impl RAM {
@@ -25,10 +25,14 @@ impl RAM {
 }
 
 impl ROM {
-	pub fn new() -> Self {
-		ROM { rom: Box::new([0; 65536]) }
-	}
+	// pub fn new() -> Self {
+	// 	ROM { rom: Box::new([0; 65536]) }
+	// }
 
+	pub fn new(rom: Box<[u8; 65536]>) -> Self {
+		ROM { rom }
+	}
+	
 	pub fn read(&self, addr: u16) -> u8 {
 		self.rom[addr as usize]
 	}

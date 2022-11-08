@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 sdl2 = "0.35.2"
-log = {}
+log = "0.4.17"
+simple_logger = "4.0.0"

@@ -7,10 +7,10 @@ pub struct Bus {
 }
 
 impl Bus {
-	pub fn new() -> Self {
+	pub fn new(rom: ROM) -> Self {
 		Bus { 
 			ram: RAM::new(), 
-			rom: ROM::new() 
+			rom: rom
 		}
 	}
 }

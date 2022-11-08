@@ -1,8 +1,11 @@
 /// The decoder's purpose is to take OPCODE and translate it to the appropriate instruction.
 // https://www.masswerk.at/6502/6502_instruction_set.html
 
+use log::error;
+use std::fmt;
+
 /// All possible CPU instructions. This is written like in 6502 assembler.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Instructions {
 	ADC, // add with carry
 	AND, // and (with accumulator)
@@ -63,7 +66,7 @@ pub enum Instructions {
 }
 
 /// Taken from wikipedia.org
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum AddressingMode {
 	IMPLIED, 		// 1 byte
 	ABSOLUTE, 		// 3 bytes
@@ -76,23 +79,52 @@ pub enum AddressingMode {
 	IMMEDIATE , 	// 2 bytes
 }
 
+
+/// Instruction's cycles can be changed if some conditions are met. \
+/// Explanation:\
+///
+/// 
+/// | Enum               | Description                                                                                              |
+/// |--------------------|----------------------------------------------------------------------------------------------------------|
+/// | NONE               | don't change amount of cycles                                                                            |
+/// | PageBoundryCrossed | add 1 to cycles if page boundary is crossed                                                              |
+/// | BranchOccursOn     | add 2 to cycles if branch occurs on same page <br> or add 2 to cycles if branch occurs to different page |
+/// 
+/// 
+#[derive(Debug)]
+pub enum CycleWare {
+	NONE,
+	PageBoundryCrossed,
+	BranchOccursOn
+}
+
+impl fmt::Display for CycleWare {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match *self {
+			CycleWare::NONE => write!(f, "No"),
+			_=> write!(f, "Yes")
+		}
+    }
+}
+
 /// Decode CPU instruction, probably from ROM or something. \
 /// Returns the Instruction (like in assembly), Addressing Mode, Bytes, Cycles.
-pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8) {
+pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CycleWare) {
 	// No need to deconstruct the opcode into this, since we can match all 255 possible opcodes with hex anyway.
 	// let CC = opcode & 0b11;				// define the opcode
 	// let BBB = (opcode >> 2) & 0b111;	// defines addressing mode
 	// let AAA = (opcode >> 5) & 0b111;	// define the opcode
 
-	println!("Test");
-
 	match opcode {
-		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 1, 2),
-		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 1, 2),
+		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 		1, 2, CycleWare::NONE),
+		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 		1, 2, CycleWare::NONE),
+		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 		2, 2, CycleWare::NONE),
+		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 		2, 5, CycleWare::PageBoundryCrossed),
 
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
-			panic!("Could not decode instruction, opcode: {}", opcode);
+			error!("Could not decode instruction, opcode: {:#X}", opcode);
+			panic!();
 		}
 	}
 }	
