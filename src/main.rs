@@ -9,7 +9,7 @@ mod memory;
 
 use crate::cpu::CPU;
 use bus::Bus;
-use memory::{ROM, RAM};
+use memory::{ROM, RAM, write_rom};
 
 
 // https://web.archive.org/web/20210803073202/http://www.obelisk.me.uk/6502/architecture.html
@@ -23,7 +23,7 @@ use memory::{ROM, RAM};
 /// The TOLOWER routine is described here: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers \
 /// "which copies a null-terminated character string from one location to another, converting upper-case letter characters to lower-case letters."
 /// Returns the amount of assembly lines / code written in ROM.
-fn populate_rom_with_subroutine_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
+fn program_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
 	rom_memory[0] 	= 0xA0; //LDY #$00
 	rom_memory[1] 	= 0x00;
 	rom_memory[2] 	= 0xB1;	//LDA (SRC),Y
@@ -55,15 +55,29 @@ fn populate_rom_with_subroutine_tolower(rom_memory: &mut [u8;65_536]) -> u8 {
 	16
 }
 
+/// Program is taken from the first example here: https://skilldrick.github.io/easy6502/#first-program
+/// Returns the amount of assembly lines / code written in ROM.
+fn program_helloworld(rom_memory: &mut [u8;65_536]) -> u8 {
+	// LDA #$01
+	// STA $0200
+	// LDA #$05
+	// STA $0201
+	// LDA #$08
+	// STA $0202
+
+	write_rom(rom_memory, "a9 01 8d 00 02 a9 05 8d 01 02 a9 08 8d 02 02");
+	6
+}
+
+
+
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
-	// Here we can write to ROM memory and modify the instructions to execute.
-	// The example here is from wiki page: https://en.wikipedia.org/wiki/MOS_Technology_6502
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
-	let assembly_lines_amount = populate_rom_with_subroutine_tolower(&mut rom_memory);
-	
 
+	let assembly_lines_amount = program_helloworld(&mut rom_memory);
+	
 	let a = Box::new(rom_memory);
 	let rom: ROM = ROM {
 		rom: a

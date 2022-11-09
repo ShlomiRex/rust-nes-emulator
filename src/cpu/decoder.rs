@@ -2,7 +2,7 @@
 // https://www.masswerk.at/6502/6502_instruction_set.html
 
 use log::error;
-use std::fmt;
+use std::{fmt, ops::Add};
 
 /// All possible CPU instructions. This is written like in 6502 assembler.
 #[derive(PartialEq, Debug)]
@@ -84,8 +84,12 @@ pub enum Instructions {
 pub enum AddressingMode {
 	IMPLIED, 		// 1 byte
 	ABSOLUTE, 		// 3 bytes
+	ABSOLUTEX,
+	ABSOLUTEY,
 	INDEXED, 		// 3 bytes
 	ZEROPAGE, 		// 2 bytes
+	ZEROPAGEX,
+	ZEROPAGEY,
 	RELATIVE, 		// 2 bytes
 	ACCUMULATOR, 	// 1 byte
 	INDIRECTX, 		// 2 bytes
@@ -129,20 +133,35 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 	// let AAA = (opcode >> 5) & 0b111;	// define the opcode
 
 	match opcode {
-		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
-		0x09 => (Instructions::ORA, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
-		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
-		0x38 => (Instructions::SEC, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
-		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 	1, 6, CycleOops::NONE),
-		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
-		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 	2, 6, CycleOops::NONE),
-		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
-		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
-		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 	2, 5, CycleOops::PageBoundryCrossed),
-		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
-		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
-		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
-		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
+		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0x01 => (Instructions::ORA, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE),
+		0x05 => (Instructions::ORA, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE),
+		0x06 => (Instructions::ASL, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE),
+		0x08 => (Instructions::PHP, AddressingMode::IMPLIED, 		1, 3, CycleOops::NONE),
+		0x09 => (Instructions::ORA, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0x0A => (Instructions::ASL, AddressingMode::ACCUMULATOR, 	1, 2, CycleOops::NONE),
+		0x0D => (Instructions::ORA, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
+		0x0E => (Instructions::ASL, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE),
+		0x10 => (Instructions::BPL, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0x11 => (Instructions::ORA, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed),
+		0x15 => (Instructions::ORA, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE),
+		0x16 => (Instructions::ASL, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE),
+		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0x19 => (Instructions::ORA, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed),
+		0x1D => (Instructions::ORA, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed),
+		0x38 => (Instructions::SEC, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 		1, 6, CycleOops::NONE),
+		0x8D => (Instructions::STA, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
+		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 		2, 6, CycleOops::NONE),
+		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0xA9 => (Instructions::LDA, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed),
+		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
 			error!("Could not decode instruction, opcode: {:#X}", opcode);
