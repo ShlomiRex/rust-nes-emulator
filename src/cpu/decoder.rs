@@ -278,6 +278,13 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0xED => (Instructions::SBC, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
 		0xEE => (Instructions::INC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE),
 		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0xF1 => (Instructions::SBC, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed),
+		0xF5 => (Instructions::SBC, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE),
+		0xF6 => (Instructions::INC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE),
+		0xF8 => (Instructions::SED, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0xF9 => (Instructions::SBC, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed),
+		0xFD => (Instructions::SBC, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed),
+		0xFE => (Instructions::INC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
 			error!("Could not decode instruction, opcode: {:#X}", opcode);
