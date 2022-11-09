@@ -266,6 +266,17 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0xD9 => (Instructions::CMP, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed),
 		0xDD => (Instructions::CMP, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed),
 		0xDE => (Instructions::DEC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE),
+		0xE0 => (Instructions::CPX, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0xE1 => (Instructions::SBC, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE),
+		0xE4 => (Instructions::CPX, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE),
+		0xE5 => (Instructions::SBC, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE),
+		0xE6 => (Instructions::INC, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE),
+		0xE8 => (Instructions::INX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0xE9 => (Instructions::SBC, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0xEA => (Instructions::NOP, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0xEC => (Instructions::CPX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
+		0xED => (Instructions::SBC, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
+		0xEE => (Instructions::INC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE),
 		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
