@@ -1,15 +1,14 @@
 #![feature(mixed_integer_ops)]
 
 use simple_logger::SimpleLogger;
-use log::{error, warn, debug, info};
 
 mod cpu;
 mod bus;
 mod memory;
 
-use crate::cpu::CPU;
 use bus::Bus;
-use memory::{ROM, RAM, write_rom};
+use memory::{ROM, write_rom};
+use cpu::cpu::CPU;
 
 
 // https://web.archive.org/web/20210803073202/http://www.obelisk.me.uk/6502/architecture.html
