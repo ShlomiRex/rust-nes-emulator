@@ -86,12 +86,13 @@ pub enum AddressingMode {
 	ABSOLUTE, 		// 3 bytes
 	ABSOLUTEX,
 	ABSOLUTEY,
-	INDEXED, 		// 3 bytes
+	// INDEXED, 		// 3 bytes
 	ZEROPAGE, 		// 2 bytes
 	ZEROPAGEX,
-	ZEROPAGEY,
+	// ZEROPAGEY,
 	RELATIVE, 		// 2 bytes
 	ACCUMULATOR, 	// 1 byte
+	INDIRECT, 
 	INDIRECTX, 		// 2 bytes
 	INDIRECTY, 		// 2 bytes
 	IMMEDIATE , 	// 2 bytes
@@ -188,6 +189,15 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0x5D => (Instructions::EOR, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed),
 		0x5E => (Instructions::LSR, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE),
 		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 		1, 6, CycleOops::NONE),
+		0x61 => (Instructions::ADC, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE),
+		0x65 => (Instructions::ADC, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE),
+		0x66 => (Instructions::ROR, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE),
+		0x68 => (Instructions::PLA, AddressingMode::IMPLIED, 		1, 4, CycleOops::NONE),
+		0x69 => (Instructions::ADC, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
+		0x6A => (Instructions::ROR, AddressingMode::ACCUMULATOR, 	1, 2, CycleOops::NONE),
+		0x6C => (Instructions::JMP, AddressingMode::INDIRECT, 		3, 5, CycleOops::NONE),
+		0x6D => (Instructions::ADC, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
+		0x6E => (Instructions::ROR, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE),
 		0x8D => (Instructions::STA, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
 		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
 		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 		2, 6, CycleOops::NONE),
