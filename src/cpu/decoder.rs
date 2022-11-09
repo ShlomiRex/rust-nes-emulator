@@ -70,12 +70,13 @@ pub enum Instructions {
 /// 
 /// | Mode | Description |
 /// |---|---|
-/// | IMPLIED |  |
-/// | ABSOLUTE |  |
-/// | INDEXED |  |
-/// | ZEROPAGE |  |
-/// | RELATIVE |  |
-/// | ACCUMULATOR |  |
+/// | IMPLIED | No data is needed to be fetched to execute the instruction |
+/// | ABSOLUTE | The next 2 bytes after opcode is the memory, which indicates memory location in absolute integer |
+/// | INDEXED | Indexed addressing modes use the X or Y register to help determine the address. |
+/// | ZEROPAGE | Zero page is only the first 256 bytes of memory (absolute address of $0-$FF). The next byte after opcode is the memory address to take the data from. For example, `LDA $35` will load the 2 bytes at the memory location of 35. Advantage of zero-page are two - the instruction takes one less byte to specify, and it executes in less CPU cycles.|
+/// | RELATIVE | The next byte after opcode is offset. Add program counter with offset to get relative address. |
+/// | ACCUMULATOR | The memory needed to execute instruction is inside A register |
+/// | INDIRECT | The `JMP` instruction is the only instruction which uses indirect. The instruction is 3 bytes long. Consider: `JMP ($1000)`, and at memory $1000, $1001 the bytes are: `52 3a`, then the PC will be set to $3a52. |
 /// | INDIRECTX |  |
 /// | INDIRECTY |  |
 /// | IMMEDIATE | Data defined in next byte after opcode |
@@ -104,16 +105,16 @@ pub enum AddressingMode {
 /// | BranchOccursOn     | add 2 to cycles if branch occurs on same page <br> or add 2 to cycles if branch occurs to different page |
 /// 
 /// 
-pub enum CyclesMutations {
+pub enum CycleOops {
 	NONE,
 	PageBoundryCrossed,
 	BranchOccursOn
 }
 
-impl fmt::Display for CyclesMutations {
+impl fmt::Display for CycleOops {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
-			CyclesMutations::NONE => write!(f, "No"),
+			CycleOops::NONE => write!(f, "No"),
 			_=> write!(f, "Yes")
 		}
     }
@@ -121,27 +122,27 @@ impl fmt::Display for CyclesMutations {
 
 /// Decode CPU instruction, probably from ROM or something. \
 /// Returns the Instruction (like in assembly), Addressing Mode, Bytes, Cycles.
-pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CyclesMutations) {
+pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CycleOops) {
 	// No need to deconstruct the opcode into this, since we can match all 255 possible opcodes with hex anyway.
 	// let CC = opcode & 0b11;				// define the opcode
 	// let BBB = (opcode >> 2) & 0b111;	// defines addressing mode
 	// let AAA = (opcode >> 5) & 0b111;	// define the opcode
 
 	match opcode {
-		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
-		0x09 => (Instructions::ORA, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
-		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
-		0x38 => (Instructions::SEC, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
-		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 	1, 6, CyclesMutations::NONE),
-		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
-		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 	2, 6, CyclesMutations::NONE),
-		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
-		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
-		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 	2, 5, CyclesMutations::PageBoundryCrossed),
-		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 	1, 2, CyclesMutations::NONE),
-		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 	2, 2, CyclesMutations::NONE),
-		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
-		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 	2, 2, CyclesMutations::BranchOccursOn),
+		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
+		0x09 => (Instructions::ORA, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
+		0x18 => (Instructions::CLC, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
+		0x38 => (Instructions::SEC, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
+		0x60 => (Instructions::RTS, AddressingMode::IMPLIED, 	1, 6, CycleOops::NONE),
+		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
+		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 	2, 6, CycleOops::NONE),
+		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
+		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
+		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 	2, 5, CycleOops::PageBoundryCrossed),
+		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 	1, 2, CycleOops::NONE),
+		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 	2, 2, CycleOops::NONE),
+		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
+		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 	2, 2, CycleOops::BranchOccursOn),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
 			error!("Could not decode instruction, opcode: {:#X}", opcode);

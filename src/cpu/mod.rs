@@ -8,7 +8,7 @@ use log::{debug, error};
 use registers::Registers;
 use crate::bus::Bus;
 use crate::cpu::decoder::AddressingMode;
-use decoder::{CyclesMutations, Instructions};
+use decoder::{CycleOops, Instructions};
 use registers::ProcessorStatusRegisterBits;
 
 // /// # 8-bit databus
@@ -53,20 +53,20 @@ impl CPU {
 		let addrmode = instruction.1;
 		let bytes = instruction.2;
 		let cycles = instruction.3;
-		let cycles_mut = instruction.4;
+		let cycle_oops = instruction.4;
 
-		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Cycles mut: {}", opcode, instr, addrmode, bytes, cycles, cycles_mut);
+		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Cycle Oops: {}", opcode, instr, addrmode, bytes, cycles, cycle_oops);
 
-		match cycles_mut {
-			CyclesMutations::NONE => { 
+		match cycle_oops {
+			CycleOops::NONE => { 
 				// don't change amount of cycles.
 			},
-			CyclesMutations::PageBoundryCrossed => { 
+			CycleOops::PageBoundryCrossed => { 
 				//TODO: Impliment. For now, I don't change amount of cycles.
 
 				//add 1 to cycles if page boundary is crossed
 			},
-			CyclesMutations::BranchOccursOn => {
+			CycleOops::BranchOccursOn => {
 				//TODO: Impliment. For now, I don't change amount of cycles.
 
 				//add 1 to cycles if branch occurs on same page
@@ -81,15 +81,13 @@ impl CPU {
 
 		// Here we allowed to cast u8 to u16 because its the Address bus. The CPU only supports address bus of 16 signals (bits).
 		let fetched_memory: u16 = match addrmode {
+			AddressingMode::IMPLIED => 0, // Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
 			AddressingMode::ABSOLUTE => self.fetch_absolute(),
 			AddressingMode::RELATIVE => self.fetch_relative(),
 			AddressingMode::IMMEDIATE => self.fetch_immediate() as u16,
-			// AddressingMode::INDIRECTY => {
-			// 	self.fetch_indirect_y()
-			// }
 			AddressingMode::ACCUMULATOR => self.fetch_accumulator() as u16,
-			// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
-			AddressingMode::IMPLIED => 0,
+			AddressingMode::INDIRECTY => self.fetch_indirect_y(),
+			
 			_ => {
 				panic_addressing_mode_unsupported(addrmode);
 				panic!();
@@ -99,6 +97,7 @@ impl CPU {
 		// After each instruction, the P register may change, depending on the instruction.
 		// The instruction sets the desired bit flag to change, and after execution, the CPU checks and modifies the P register.
 		// Each vector contains 0 or more bits to modify/set/clear and so on.
+		// TODO: Optimize by moving vectors to struct, and not initialize them each clock tick. Also, clear them after cycle.
 		let mut p_modify: Vec<ProcessorStatusRegisterBits> = Vec::new();
 		let mut p_clear: Vec<ProcessorStatusRegisterBits> = Vec::new();
 		let mut p_set: Vec<ProcessorStatusRegisterBits> = Vec::new();
@@ -183,10 +182,7 @@ impl CPU {
 	/// Fetch memory from the next 2 bytes of the instruction. (after opcode)
 	/// The memory is 2 bytes because this is the address size in 6502.
 	fn fetch_absolute(&self) -> u16 {
-		let msb = self.bus.rom.read(self.registers.PC + 1) as u16;
-		let lsb = self.bus.rom.read(self.registers.PC + 2) as u16;
-		// We need to convert two u8 to one u16, and use most significant bits and least significant bits.
-		let res = (msb << 4) | lsb;
+		let res = self.bus.ram.read_address(self.registers.PC);
 		debug!("Fetched absolute: {:X}", res);
 		res
 	}
@@ -204,6 +200,21 @@ impl CPU {
 		let res = pc.wrapping_add_signed(offset as i16);
 
 		debug!("Fetched relative: {}", res);
+		res
+	}
+
+	/// Indirect Indexed
+	/// Fetches the next byte after opcode, to be used in zero page
+	/// The calculation: $(zero page at absolute location ___) + Y
+	/// Because zero page is only 256 bytes long, the instruction's address requires 1 byte.
+	fn fetch_indirect_y(&self) -> u16 {
+		// Read zero-page index address
+		let zero_page_indexed_addr: u8 = self.bus.rom.read(self.registers.PC + 1); // read source
+		// Get the desired zero-page address
+		let addr: u16 = self.bus.ram.read_address(zero_page_indexed_addr as u16); // get the address the source points to
+
+		let res: u16 = self.registers.Y as u16 + addr;
+		debug!("Fetched indirect indexed Y: {}", res);
 		res
 	}
 

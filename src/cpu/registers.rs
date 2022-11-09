@@ -63,9 +63,15 @@ impl ProcessorStatusRegisterBits {
 	}
 }
 
-#[derive(Default)]
 pub struct ProcessorStatusRegister {
 	flags: u8
+}
+
+impl Default for ProcessorStatusRegister {
+    fn default() -> Self {
+		// Set 'UNUSED' flag to 1. Its the standard.
+        Self { flags: 0b0010_0000 }
+    }
 }
 
 impl ProcessorStatusRegister {
