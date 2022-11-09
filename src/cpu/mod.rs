@@ -54,8 +54,9 @@ impl CPU {
 		let bytes = instruction.2;
 		let cycles = instruction.3;
 		let cycle_oops = instruction.4;
+		let p_bits_change = instruction.5;
 
-		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Cycle Oops: {}", opcode, instr, addrmode, bytes, cycles, cycle_oops);
+		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, cycle_oops, p_bits_change);
 
 		match cycle_oops {
 			CycleOops::NONE => { 

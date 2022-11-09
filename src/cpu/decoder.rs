@@ -2,7 +2,8 @@
 // https://www.masswerk.at/6502/6502_instruction_set.html
 
 use log::error;
-use std::{fmt, ops::Add};
+use std::fmt;
+use ProcessorStatusRegisterBitChanges::*;
 
 /// All possible CPU instructions. This is written like in 6502 assembler.
 #[derive(PartialEq, Debug)]
@@ -135,43 +136,78 @@ pub enum ProcessorStatusRegisterBitChanges {
 	FromStack
 }
 
-use ProcessorStatusRegisterBitChanges::*;
+impl fmt::Display for ProcessorStatusRegisterBitChanges {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let letter = match self {
+			NotModified => '-',
+			MODIFIED => '+',
+			SET => '1',
+			CLEARED => '0',
+			M6 => '6',
+			M7 => '7',
+			FromStack => 'S'
+		};
+        write!(f, "{}", letter)
+    }
+}
 
 // The tuple represents the P flag, like so: N Z C I D V (the order matters)
 // Each bit flag can be of type: ProcessorStatusRegisterBitChanges.
-type PFlagBitsChange = (ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, 
+type PFlagBitsChangeTuple = (ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, 
 	ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges);
+
+pub struct PBitflagsChange(PFlagBitsChangeTuple);
+
+impl fmt::Display for PBitflagsChange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NZCIDV {}{}{}{}{}{}", self.0.0, self.0.1, self.0.2, self.0.3, self.0.4, self.0.5)
+    }
+}
 
 /// Decode CPU instruction, probably from ROM or something. \
 /// Returns the Instruction (like in assembly), Addressing Mode, Bytes, Cycles.
-pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CycleOops, PFlagBitsChange) {
+pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, CycleOops, PBitflagsChange) {
 
 	// Each variable is pre-fabricated object that will be used in the match statement next.
 	// I do this in order to not go insane about filling 151 lines with 6 options. (151*6 = 906 options!!!). And I would go crazy when I add illegal opcodes.
 
 
-	// N Z C I D V 			- - - 1 - -
-	let ___1__: PFlagBitsChange = 		(NotModified, 	NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified);
-	// N Z C I D V 			+ + - - - -
-	let MM____: PFlagBitsChange = 		(MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	NotModified);
-	// N Z C I D V 			+ + + - - -
-	let MMM___: PFlagBitsChange = 		(MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified);
-	// N Z C I D V 			+ + + - - +
-	let MMM__M: PFlagBitsChange = 		(MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	MODIFIED);
-	// N Z C I D V 			- - - - - -
-	let ______: PFlagBitsChange = 		(NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified);
-	// N Z C I D V 			- - 0 - - -
-	let __0___: PFlagBitsChange = 		(NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified, 	NotModified);
-	// N Z C I D V 			M7 + - - - M6
-	let m7M___m6: PFlagBitsChange = 	(M7, 			MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	M6);
-	// N Z C I D V 			  from stack
-	let from_stack: PFlagBitsChange = 	(FromStack, 	FromStack, 		FromStack, 		FromStack, 		FromStack, 		FromStack);
 	// N Z C I D V 			- - 1 - - -
-	let __1___: PFlagBitsChange = 		(NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified, 	NotModified);
+	let __1___: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified, 	NotModified) };
+	// N Z C I D V 			- - - 1 - -
+	let ___1__: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified) };
+	// N Z C I D V 			- - - - 1 -
+	let ____1_: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	SET, 			NotModified) };
+	
+
+
+	// N Z C I D V 			+ + - - - -
+	let MM____: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	NotModified) };
+	// N Z C I D V 			+ + + - - -
+	let MMM___: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified) };
+	// N Z C I D V 			+ + + - - +
+	let MMM__M: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	MODIFIED) };
+	// N Z C I D V 			- - - - - -
+	let ______: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified) };
+	// N Z C I D V 			M7 + - - - M6
+	let m7M___m6: PBitflagsChange = 	PBitflagsChange{ 0: (M7, 			MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	M6) };
+	// N Z C I D V 			  from stack
+	let from_stack: PBitflagsChange = 	PBitflagsChange{ 0: (FromStack, 	FromStack, 		FromStack, 		FromStack, 		FromStack, 		FromStack) };
+
 	// N Z C I D V 			0 + + - - -
-	let zMM___ : PFlagBitsChange = 		(CLEARED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified);
+	let zMM___: PBitflagsChange = 		PBitflagsChange{ 0: (CLEARED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified) };
+
+
+
+	// N Z C I D V 			- - 0 - - -
+	let __0___: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified, 	NotModified) };
 	// N Z C I D V 			- - - 0 - -
-	let ___0__ : PFlagBitsChange = 		(NotModified, 	NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified);
+	let ___0__: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified) };
+	// N Z C I D V 			- - - - 0 -
+	let ____0_: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	CLEARED, 		NotModified) };
+	// N Z C I D V 			- - - - - 0
+	let _____0: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified, 	CLEARED) };
+
 
 	match opcode {
 		0x00 => (Instructions::BRK, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					___1__),
@@ -265,66 +301,66 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0x9A => (Instructions::TXS, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					______),
 		0x9D => (Instructions::STA, AddressingMode::ABSOLUTEX, 		3, 5, CycleOops::NONE, 					______),
 		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MM____),
-		0xA1 => (Instructions::LDA, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					),
-		0xA2 => (Instructions::LDX, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
+		0xA1 => (Instructions::LDA, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					MM____),
+		0xA2 => (Instructions::LDX, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MM____),
 		0xA4 => (Instructions::LDY, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MM____),
-		0xA5 => (Instructions::LDA, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xA6 => (Instructions::LDX, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xA8 => (Instructions::TAY, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xA9 => (Instructions::LDA, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
-		0xAA => (Instructions::TAX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
+		0xA5 => (Instructions::LDA, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MM____),
+		0xA6 => (Instructions::LDX, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MM____),
+		0xA8 => (Instructions::TAY, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
+		0xA9 => (Instructions::LDA, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MM____),
+		0xAA => (Instructions::TAX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
 		0xAC => (Instructions::LDY, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MM____),
-		0xAD => (Instructions::LDA, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xAE => (Instructions::LDX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		MM____),
-		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	),
+		0xAD => (Instructions::LDA, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MM____),
+		0xAE => (Instructions::LDX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MM____),
+		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		______),
+		0xB1 => (Instructions::LDA, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	MM____),
 		0xB4 => (Instructions::LDY, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					MM____),
-		0xB5 => (Instructions::LDA, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					),
-		0xB6 => (Instructions::LDX, AddressingMode::ZEROPAGEY, 		2, 4, CycleOops::NONE, 					),
-		0xB8 => (Instructions::CLV, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xB9 => (Instructions::LDA, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xBA => (Instructions::TSX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xBC => (Instructions::LDY, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xBD => (Instructions::LDA, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xBE => (Instructions::LDX, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xC0 => (Instructions::CPY, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
-		0xC1 => (Instructions::CMP, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					),
-		0xC4 => (Instructions::CPY, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xC5 => (Instructions::CMP, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xC6 => (Instructions::DEC, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE, 					),
-		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
-		0xCA => (Instructions::DEX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xCC => (Instructions::CPY, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xCD => (Instructions::CMP, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xCE => (Instructions::DEC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE, 					),
-		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		),
-		0xD1 => (Instructions::CMP, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	),
-		0xD5 => (Instructions::CMP, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					),
-		0xD6 => (Instructions::DEC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE, 					),
-		0xD8 => (Instructions::CLD, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xD9 => (Instructions::CMP, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xDD => (Instructions::CMP, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xDE => (Instructions::DEC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE, 					),
-		0xE0 => (Instructions::CPX, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
-		0xE1 => (Instructions::SBC, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					),
-		0xE4 => (Instructions::CPX, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xE5 => (Instructions::SBC, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					),
-		0xE6 => (Instructions::INC, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE, 					),
-		0xE8 => (Instructions::INX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xE9 => (Instructions::SBC, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					),
-		0xEA => (Instructions::NOP, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xEC => (Instructions::CPX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xED => (Instructions::SBC, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					),
-		0xEE => (Instructions::INC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE, 					),
-		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		),
-		0xF1 => (Instructions::SBC, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	),
-		0xF5 => (Instructions::SBC, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					),
-		0xF6 => (Instructions::INC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE, 					),
-		0xF8 => (Instructions::SED, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					),
-		0xF9 => (Instructions::SBC, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xFD => (Instructions::SBC, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	),
-		0xFE => (Instructions::INC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE, 					),
+		0xB5 => (Instructions::LDA, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					MM____),
+		0xB6 => (Instructions::LDX, AddressingMode::ZEROPAGEY, 		2, 4, CycleOops::NONE, 					MM____),
+		0xB8 => (Instructions::CLV, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					_____0),
+		0xB9 => (Instructions::LDA, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	MM____),
+		0xBA => (Instructions::TSX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
+		0xBC => (Instructions::LDY, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	MM____),
+		0xBD => (Instructions::LDA, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	MM____),
+		0xBE => (Instructions::LDX, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	MM____),
+		0xC0 => (Instructions::CPY, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MMM___),
+		0xC1 => (Instructions::CMP, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					MMM___),
+		0xC4 => (Instructions::CPY, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MMM___),
+		0xC5 => (Instructions::CMP, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MMM___),
+		0xC6 => (Instructions::DEC, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE, 					MM____),
+		0xC8 => (Instructions::INY, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
+		0xC9 => (Instructions::CMP, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MMM___),
+		0xCA => (Instructions::DEX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
+		0xCC => (Instructions::CPY, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MMM___),
+		0xCD => (Instructions::CMP, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MMM___),
+		0xCE => (Instructions::DEC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE, 					MM____),
+		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		______),
+		0xD1 => (Instructions::CMP, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	MMM___),
+		0xD5 => (Instructions::CMP, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					MMM___),
+		0xD6 => (Instructions::DEC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE, 					MM____),
+		0xD8 => (Instructions::CLD, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					____0_),
+		0xD9 => (Instructions::CMP, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	MMM___),
+		0xDD => (Instructions::CMP, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	MMM___),
+		0xDE => (Instructions::DEC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE, 					MM____),
+		0xE0 => (Instructions::CPX, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MMM___),
+		0xE1 => (Instructions::SBC, AddressingMode::INDIRECTX, 		2, 6, CycleOops::NONE, 					MMM__M),
+		0xE4 => (Instructions::CPX, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MMM___),
+		0xE5 => (Instructions::SBC, AddressingMode::ZEROPAGE, 		2, 3, CycleOops::NONE, 					MMM__M),
+		0xE6 => (Instructions::INC, AddressingMode::ZEROPAGE, 		2, 5, CycleOops::NONE, 					MM____),
+		0xE8 => (Instructions::INX, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					MM____),
+		0xE9 => (Instructions::SBC, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE, 					MMM__M),
+		0xEA => (Instructions::NOP, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					______),
+		0xEC => (Instructions::CPX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MMM___),
+		0xED => (Instructions::SBC, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE, 					MMM__M),
+		0xEE => (Instructions::INC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE, 					MM____),
+		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn, 		______),
+		0xF1 => (Instructions::SBC, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed, 	MMM__M),
+		0xF5 => (Instructions::SBC, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE, 					MMM__M),
+		0xF6 => (Instructions::INC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE, 					MM____),
+		0xF8 => (Instructions::SED, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE, 					____1_),
+		0xF9 => (Instructions::SBC, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed, 	MMM__M),
+		0xFD => (Instructions::SBC, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed, 	MMM__M),
+		0xFE => (Instructions::INC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE, 					MM____),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
 			error!("Could not decode instruction, opcode: {:#X}", opcode);
