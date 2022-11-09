@@ -2,7 +2,7 @@ use core::panic;
 use log::{debug, error};
 
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
-use crate::cpu::decoder::{CycleOops, Instructions, AddressingMode, decode_opcode};
+use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::bus::Bus;
 
 // /// # 8-bit databus
@@ -53,15 +53,15 @@ impl CPU {
 		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, cycle_oops, p_bits_change);
 
 		match cycle_oops {
-			CycleOops::NONE => { 
+			OopsCycle::NONE => { 
 				// don't change amount of cycles.
 			},
-			CycleOops::PageBoundryCrossed => { 
+			OopsCycle::PageBoundryCrossed => { 
 				//TODO: Impliment. For now, I don't change amount of cycles.
 
 				//add 1 to cycles if page boundary is crossed
 			},
-			CycleOops::BranchOccursOn => {
+			OopsCycle::BranchOccursOn => {
 				//TODO: Impliment. For now, I don't change amount of cycles.
 
 				//add 1 to cycles if branch occurs on same page
