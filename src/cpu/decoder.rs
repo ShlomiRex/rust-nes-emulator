@@ -259,6 +259,13 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0xCD => (Instructions::CMP, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
 		0xCE => (Instructions::DEC, AddressingMode::ABSOLUTE, 		3, 6, CycleOops::NONE),
 		0xD0 => (Instructions::BNE, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
+		0xD1 => (Instructions::CMP, AddressingMode::INDIRECTY, 		2, 5, CycleOops::PageBoundryCrossed),
+		0xD5 => (Instructions::CMP, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE),
+		0xD6 => (Instructions::DEC, AddressingMode::ZEROPAGEX, 		2, 6, CycleOops::NONE),
+		0xD8 => (Instructions::CLD, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0xD9 => (Instructions::CMP, AddressingMode::ABSOLUTEY, 		3, 4, CycleOops::PageBoundryCrossed),
+		0xDD => (Instructions::CMP, AddressingMode::ABSOLUTEX, 		3, 4, CycleOops::PageBoundryCrossed),
+		0xDE => (Instructions::DEC, AddressingMode::ABSOLUTEX, 		3, 7, CycleOops::NONE),
 		0xF0 => (Instructions::BEQ, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
 		_ => {
 			//TODO: For now we panic, but we must handle this later. What happens when illegal instruction is called in real NES?
