@@ -89,7 +89,7 @@ pub enum AddressingMode {
 	// INDEXED, 		// 3 bytes
 	ZEROPAGE, 		// 2 bytes
 	ZEROPAGEX,
-	// ZEROPAGEY,
+	ZEROPAGEY,
 	RELATIVE, 		// 2 bytes
 	ACCUMULATOR, 	// 1 byte
 	INDIRECT, 
@@ -217,6 +217,13 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, Cycle
 		0x8E => (Instructions::STX, AddressingMode::ABSOLUTE, 		3, 4, CycleOops::NONE),
 		0x90 => (Instructions::BCC, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
 		0x91 => (Instructions::STA, AddressingMode::INDIRECTY, 		2, 6, CycleOops::NONE),
+		0x94 => (Instructions::STY, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE),
+		0x95 => (Instructions::STA, AddressingMode::ZEROPAGEX, 		2, 4, CycleOops::NONE),
+		0x96 => (Instructions::STX, AddressingMode::ZEROPAGEY, 		2, 4, CycleOops::NONE),
+		0x98 => (Instructions::TYA, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0x99 => (Instructions::STA, AddressingMode::ABSOLUTEY, 		3, 5, CycleOops::NONE),
+		0x9A => (Instructions::TXS, AddressingMode::IMPLIED, 		1, 2, CycleOops::NONE),
+		0x9D => (Instructions::STA, AddressingMode::ABSOLUTEX, 		3, 5, CycleOops::NONE),
 		0xA0 => (Instructions::LDY, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
 		0xA9 => (Instructions::LDA, AddressingMode::IMMEDIATE, 		2, 2, CycleOops::NONE),
 		0xB0 => (Instructions::BCS, AddressingMode::RELATIVE, 		2, 2, CycleOops::BranchOccursOn),
