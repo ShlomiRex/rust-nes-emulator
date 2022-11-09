@@ -153,14 +153,20 @@ impl fmt::Display for ProcessorStatusRegisterBitChanges {
 
 // The tuple represents the P flag, like so: N Z C I D V (the order matters)
 // Each bit flag can be of type: ProcessorStatusRegisterBitChanges.
-type PFlagBitsChangeTuple = (ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, 
-	ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges);
-
-pub struct PBitflagsChange(PFlagBitsChangeTuple);
+// pub struct PBitflagsChange(ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, 
+// 	ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges, ProcessorStatusRegisterBitChanges);
+pub struct PBitflagsChange {
+	pub n: ProcessorStatusRegisterBitChanges,
+	pub z: ProcessorStatusRegisterBitChanges,
+	pub c: ProcessorStatusRegisterBitChanges,
+	pub i: ProcessorStatusRegisterBitChanges,
+	pub d: ProcessorStatusRegisterBitChanges,
+	pub v: ProcessorStatusRegisterBitChanges
+}
 
 impl fmt::Display for PBitflagsChange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NZCIDV {}{}{}{}{}{}", self.0.0, self.0.1, self.0.2, self.0.3, self.0.4, self.0.5)
+        write!(f, "NZCIDV {}{}{}{}{}{}", self.n, self.z, self.c, self.i, self.d, self.v)
     }
 }
 
@@ -171,42 +177,34 @@ pub fn decode_opcode(opcode: u8) -> (Instructions, AddressingMode, u8, u8, OopsC
 	// Each variable is pre-fabricated object that will be used in the match statement next.
 	// I do this in order to not go insane about filling 151 lines with 6 options. (151*6 = 906 options!!!). And I would go crazy when I add illegal opcodes.
 
-
 	// N Z C I D V 			- - 1 - - -
-	let __1___: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified, 	NotModified) };
+	let __1___: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: SET, 			i: NotModified, 	d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			- - - 1 - -
-	let ___1__: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	SET, 			NotModified, 	NotModified) };
+	let ___1__: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: SET, 			d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			- - - - 1 -
-	let ____1_: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	SET, 			NotModified) };
-	
-
-
+	let ____1_: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: NotModified, 	d: SET, 			v: NotModified 	};
 	// N Z C I D V 			+ + - - - -
-	let MM____: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	NotModified) };
+	let MM____: PBitflagsChange = 		PBitflagsChange{ n: MODIFIED, 		z: MODIFIED, 		c: NotModified, 	i: NotModified, 	d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			+ + + - - -
-	let MMM___: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified) };
+	let MMM___: PBitflagsChange = 		PBitflagsChange{ n: MODIFIED, 		z: MODIFIED, 		c: MODIFIED, 		i: NotModified, 	d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			+ + + - - +
-	let MMM__M: PBitflagsChange = 		PBitflagsChange{ 0: (MODIFIED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	MODIFIED) };
+	let MMM__M: PBitflagsChange = 		PBitflagsChange{ n: MODIFIED, 		z: MODIFIED, 		c: MODIFIED, 		i: NotModified, 	d: NotModified, 	v: MODIFIED 	};
 	// N Z C I D V 			- - - - - -
-	let ______: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified) };
+	let ______: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: NotModified, 	d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			M7 + - - - M6
-	let m7M___m6: PBitflagsChange = 	PBitflagsChange{ 0: (M7, 			MODIFIED, 		NotModified, 	NotModified, 	NotModified, 	M6) };
+	let m7M___m6: PBitflagsChange = 	PBitflagsChange{ n: M7, 			z: MODIFIED, 		c: NotModified, 	i: NotModified, 	d: NotModified, 	v: M6 			};
 	// N Z C I D V 			  from stack
-	let from_stack: PBitflagsChange = 	PBitflagsChange{ 0: (FromStack, 	FromStack, 		FromStack, 		FromStack, 		FromStack, 		FromStack) };
-
+	let from_stack: PBitflagsChange = 	PBitflagsChange{ n: FromStack, 		z: FromStack, 		c: FromStack, 		i: FromStack, 		d: FromStack, 		v: FromStack 	};
 	// N Z C I D V 			0 + + - - -
-	let zMM___: PBitflagsChange = 		PBitflagsChange{ 0: (CLEARED, 		MODIFIED, 		MODIFIED, 		NotModified, 	NotModified, 	NotModified) };
-
-
-
+	let zMM___: PBitflagsChange = 		PBitflagsChange{ n: CLEARED, 		z: MODIFIED, 		c: MODIFIED, 		i: NotModified, 	d: NotModified, 	v: NotModified	};
 	// N Z C I D V 			- - 0 - - -
-	let __0___: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified, 	NotModified) };
+	let __0___: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: CLEARED, 		i: NotModified, 	d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			- - - 0 - -
-	let ___0__: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	CLEARED, 		NotModified, 	NotModified) };
+	let ___0__: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: CLEARED, 		d: NotModified, 	v: NotModified 	};
 	// N Z C I D V 			- - - - 0 -
-	let ____0_: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	CLEARED, 		NotModified) };
+	let ____0_: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: NotModified, 	d: CLEARED, 		v: NotModified 	};
 	// N Z C I D V 			- - - - - 0
-	let _____0: PBitflagsChange = 		PBitflagsChange{ 0: (NotModified, 	NotModified, 	NotModified, 	NotModified, 	NotModified, 	CLEARED) };
+	let _____0: PBitflagsChange = 		PBitflagsChange{ n: NotModified, 	z: NotModified, 	c: NotModified, 	i: NotModified, 	d: NotModified, 	v: CLEARED 		};
 
 
 	match opcode {

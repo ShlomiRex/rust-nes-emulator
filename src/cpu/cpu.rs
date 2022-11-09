@@ -2,7 +2,7 @@ use core::panic;
 use log::{debug, error};
 
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
-use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
+use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode, ProcessorStatusRegisterBitChanges};
 use crate::bus::Bus;
 
 // /// # 8-bit databus
@@ -89,15 +89,6 @@ impl CPU {
 			}
 		};
 
-		// After each instruction, the P register may change, depending on the instruction.
-		// The instruction sets the desired bit flag to change, and after execution, the CPU checks and modifies the P register.
-		// Each vector contains 0 or more bits to modify/set/clear and so on.
-		// TODO: Optimize by moving vectors to struct, and not initialize them each clock tick. Also, clear them after cycle.
-		let mut p_modify: Vec<ProcessorStatusRegisterBits> = Vec::new();
-		let mut p_clear: Vec<ProcessorStatusRegisterBits> = Vec::new();
-		let mut p_set: Vec<ProcessorStatusRegisterBits> = Vec::new();
-		//TODO: Remove this ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 		//The main brains of the CPU. Execute instruction.
 		//TODO: optimize order of matching
 		//By ordering the most used instructions first, I can optimize this code. But I'm only starting so its not relevant at all.
@@ -105,16 +96,10 @@ impl CPU {
 			Instructions::LDY => {
 				// Load Index Y with Memory
 				self.registers.Y = fetched_memory as u8;
-
-				p_modify.push(ProcessorStatusRegisterBits::ZERO);
-				p_modify.push(ProcessorStatusRegisterBits::NEGATIVE);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
 				self.registers.A = fetched_memory as u8;
-
-				p_modify.push(ProcessorStatusRegisterBits::ZERO);
-				p_modify.push(ProcessorStatusRegisterBits::NEGATIVE);
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -123,28 +108,12 @@ impl CPU {
 		}
 
 		// Modify P register.
-
-		for p_bit in p_clear {
-			self.registers.P.set(p_bit, false);
-		}
-		for p_bit in p_set {
-			self.registers.P.set(p_bit, true);
-		}
-		for p_bit in p_modify {
-			match p_bit {
-				ProcessorStatusRegisterBits::ZERO => { 
-					// If memory is 0, zero flag is 1
-					self.registers.P.set(p_bit, fetched_memory == 0); 
-				}
-				ProcessorStatusRegisterBits::NEGATIVE => { 
-					// If last bit (7) is 1, its negative
-					self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (fetched_memory >> 7) == 1);
-				}
-				_ => {
-					panic!("The P bit to modify is unsupported: {:?}", p_bit);
-				}
-			}
-		}
+		self.modify_p(ProcessorStatusRegisterBits::NEGATIVE, 			p_bits_change.n, fetched_memory);
+		self.modify_p(ProcessorStatusRegisterBits::ZERO, 				p_bits_change.z, fetched_memory);
+		self.modify_p(ProcessorStatusRegisterBits::CARRY, 				p_bits_change.c, fetched_memory);
+		self.modify_p(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, 	p_bits_change.i, fetched_memory);
+		self.modify_p(ProcessorStatusRegisterBits::DECIMAL, 			p_bits_change.d, fetched_memory);
+		self.modify_p(ProcessorStatusRegisterBits::OVERFLOW, 			p_bits_change.v, fetched_memory);
 
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
@@ -169,10 +138,6 @@ impl CPU {
 		let res = self.registers.A;
 		debug!("Fetched accumulator: {}", res);
 		res
-	}
-
-	fn processor_status_flag_modified(&self, bit: ProcessorStatusRegisterBits) {
-
 	}
 
 	/// Fetch memory from the next 2 bytes of the instruction. (after opcode)
@@ -212,6 +177,45 @@ impl CPU {
 		let res: u16 = self.registers.Y as u16 + addr;
 		debug!("Fetched indirect indexed Y: {}", res);
 		res
+	}
+
+	fn modify_p(&mut self, bit: ProcessorStatusRegisterBits, job: ProcessorStatusRegisterBitChanges, fetched_memory: u16) {
+		//TODO: Complete
+		match job {
+			ProcessorStatusRegisterBitChanges::CLEARED => { 
+				self.registers.P.set(bit, false) 
+			},
+			ProcessorStatusRegisterBitChanges::SET => { 
+				self.registers.P.set(bit, true) 
+			},
+			ProcessorStatusRegisterBitChanges::MODIFIED => { 
+				match bit {
+					ProcessorStatusRegisterBits::ZERO => { 
+						// If memory is 0, zero flag is 1
+						self.registers.P.set(bit, fetched_memory == 0); 
+					}
+					ProcessorStatusRegisterBits::NEGATIVE => { 
+						// If last bit (7) is 1, its negative
+						self.registers.P.set(bit, (fetched_memory >> 7) == 1);
+					}
+					_ => {
+						panic!("The P bit to modify is unsupported: {:?}, yet", bit);
+					}
+				}
+			},
+			ProcessorStatusRegisterBitChanges::M6 => {
+
+			},
+			ProcessorStatusRegisterBitChanges::M7 => {
+
+			}
+			ProcessorStatusRegisterBitChanges::FromStack => {
+
+			}
+			ProcessorStatusRegisterBitChanges::NotModified => {
+				//do nothing
+			}
+		};
 	}
 
 	// fn fetch_indirect_y(&self) -> u8 {
