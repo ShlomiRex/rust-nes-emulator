@@ -99,6 +99,30 @@ impl CPU {
 				// Pull Accumulator from Stack
 				self.registers.A = self.pop_stack();
 			}
+			Instructions::CLC => {
+				// Clear Carry Flag
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, false);
+			}
+			Instructions::CLD => {
+				// Clear Decimal Mode
+				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, false);
+			}
+			Instructions::CLI => {
+				// Clear Interrupt Disable Bit
+				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, false);
+			}
+			Instructions::CLV => {
+				// Clear Overflow Flag
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, false);
+			}
+			Instructions::SEC => {
+				// Set Carry Flag
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, true);
+			}
+			// Instructions::ADC => {
+			// 	// Add Memory to Accumulator with Carry
+
+			// }
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();

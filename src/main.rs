@@ -84,12 +84,28 @@ fn load_program_stack_operations(rom: &mut [u8;65_536]) -> u8 {
 	7
 }
 
+fn load_program_ADC(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	CLD
+	LDA #$09
+	CLC
+	ADC #$02 	; A will be 0x0B, as expected (0x9 + 0x2 = 0xB)
+
+	SED
+	LDA #$09
+	CLC
+	ADC #$02 	; A will be 0x11, because decimal bitflag is enabled (i.e. represent the sum in 'decimal' (11) form, not hex (0xB) form)
+	*/
+	write_rom(rom, "D8 A9 09 18 69 02 F8 A9 09 18 69 02");
+	8
+}
+
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
 
-	let assembly_lines_amount = load_program_stack_operations(&mut rom_memory);
+	let assembly_lines_amount = load_program_ADC(&mut rom_memory);
 	
 	let rom: ROM = ROM {
 		rom: Box::new(rom_memory)
