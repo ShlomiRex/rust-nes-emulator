@@ -77,9 +77,8 @@ fn main() {
 
 	let assembly_lines_amount = program_helloworld(&mut rom_memory);
 	
-	let a = Box::new(rom_memory);
 	let rom: ROM = ROM {
-		rom: a
+		rom: Box::new(rom_memory)
 	};
 	
 	let bus = Box::new(Bus::new(rom));
@@ -87,5 +86,24 @@ fn main() {
 
 	for _ in 0..assembly_lines_amount {
 		cpu.clock_tick();
+	}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+	fn load_test_program(rom: &mut [u8;65_536]) {
+
+	}
+
+    #[test]
+	fn test_cpu_component() {
+		let mut rom_memory: [u8; 65_536] = [0;65_536];
+		load_test_program(&mut rom_memory);
+		
+		let rom: ROM = ROM {
+			rom: Box::new(rom_memory)
+		};
 	}
 }

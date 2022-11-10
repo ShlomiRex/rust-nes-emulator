@@ -2,7 +2,13 @@
 // Address is 2 bytes, usize is 64 bits on x64 and 32 bits on x86.
 // So converting u16 to usize never overflows, so casting is no problem.
 
+// Address space: 		0x0000 - 0xFFFF (64k)
+// Zero page: 			0x0000 - 0x00FF (256 bytes)
+// Stack: 				0x0100 - 0x01FF (after zero page, 256 bytes)
+
 extern crate hex;
+
+use log::debug;
 
 pub struct RAM {
 	ram: Box<[u8; 65_536]>
@@ -10,6 +16,16 @@ pub struct RAM {
 
 pub struct ROM {
 	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
+}
+
+fn debug_read_address(addr: u16) {
+	if addr >= 0 && addr <= 0xFF {
+		debug!("Reading from zero page, address: \t{}", addr);
+	} else if addr >= 0x100 && addr <= 0x1FF {
+		debug!("Reading from stack, address: \t{}", addr);
+	} else {
+		debug!("Reading from higher up, address: \t{}", addr);
+	}
 }
 
 impl RAM {
@@ -24,14 +40,8 @@ impl RAM {
 
 	/// Read a single byte from memory.
 	pub fn read(&self, addr: u16) -> u8 {
+		debug_read_address(addr);
 		self.ram[addr as usize]
-	}
-
-	/// Read adress from memory, which is 2 bytes long (addr, addr+1). Takes into account little-endian order to combine LSB with MSB.
-	pub fn read_address(&self, addr: u16) -> u16 {
-		let lsb = self.ram[addr as usize] 		as u16;
-		let msb = self.ram[addr as usize + 1] 	as u16;
-		(msb << 4) | lsb
 	}
 }
 
@@ -46,6 +56,7 @@ impl ROM {
 	
 	//TODO: Maybe convert to inline? This function can be called millions of times a second!
 	pub fn read(&self, addr: u16) -> u8 {
+		debug_read_address(addr);
 		self.rom[addr as usize]
 	}
 }

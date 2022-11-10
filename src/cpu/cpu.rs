@@ -75,13 +75,13 @@ impl CPU {
 		}
 
 		// Here we allowed to cast u8 to u16 because its the Address bus. The CPU only supports address bus of 16 signals (bits).
-		let fetched_memory: u16 = match addrmode {
+		let fetched_memory: u8 = match addrmode {
 			AddressingMode::IMPLIED => 0, // Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
 			AddressingMode::ABSOLUTE => self.fetch_absolute(),
-			AddressingMode::RELATIVE => self.fetch_relative(),
-			AddressingMode::IMMEDIATE => self.fetch_immediate() as u16,
-			AddressingMode::ACCUMULATOR => self.fetch_accumulator() as u16,
-			AddressingMode::INDIRECTY => self.fetch_indirect_y(),
+			// AddressingMode::RELATIVE => self.fetch_relative(),
+			AddressingMode::IMMEDIATE => self.fetch_immediate(),
+			AddressingMode::ACCUMULATOR => self.fetch_accumulator(),
+			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
 			
 			_ => {
 				panic_addressing_mode_unsupported(addrmode);
@@ -95,11 +95,11 @@ impl CPU {
 		match instr {
 			Instructions::LDY => {
 				// Load Index Y with Memory
-				self.registers.Y = fetched_memory as u8;
+				self.registers.Y = fetched_memory;
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
-				self.registers.A = fetched_memory as u8;
+				self.registers.A = fetched_memory;
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -125,26 +125,76 @@ impl CPU {
 
 	//TODO: Optimize all fetch functions as inline?
 
-
-	/// Fetch a single byte of immediate memory.
 	fn fetch_immediate(&self) -> u8 {
 		let res = self.bus.rom.read(self.registers.PC + 1);
 		debug!("Fetched immediate: {}", res);
 		res
 	}
 
-	/// Fetch memory from accumulator.
-	fn fetch_accumulator(&self) -> u8 {
-		let res = self.registers.A;
-		debug!("Fetched accumulator: {}", res);
+	fn fetch_absolute(&self) -> u8 {
+		let abs_addr = self.read_instruction_absolute_address();
+		let res = self.bus.ram.read(abs_addr);
+		debug!("Fetched absolute: {}", res);
 		res
 	}
 
-	/// Fetch memory from the next 2 bytes of the instruction. (after opcode)
-	/// The memory is 2 bytes because this is the address size in 6502.
-	fn fetch_absolute(&self) -> u16 {
-		let res = self.bus.ram.read_address(self.registers.PC);
-		debug!("Fetched absolute: {:X}", res);
+	fn fetch_zero_page(&self) -> u8 {
+		let addr = self.read_instruction_zero_page_address();
+		let res = self.bus.ram.read(addr);
+		debug!("Fetched from zero page: {}", res);
+		res
+	}
+
+	fn fetch_absolute_x(&self) -> u8 {
+		let addr = self.read_instruction_absolute_address() + self.registers.X as u16;
+		let res = self.bus.ram.read(addr);
+		debug!("Fetched absolute,X: {}", res);
+		res
+	}
+
+	fn fetch_absolute_y(&self) -> u8 {
+		let addr = self.read_instruction_absolute_address() + self.registers.Y as u16;
+		let res = self.bus.ram.read(addr);
+		debug!("Fetched absolute,Y: {}", res);
+		res
+	}
+
+	fn fetch_zero_page_x(&self) -> u8 {
+		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
+		let res = self.bus.ram.read(addr);
+		debug!("Fetched zero page, x: {}", res);
+		res
+	}
+
+	fn fetch_zero_page_y(&self) -> u8 {
+		let addr = self.read_instruction_zero_page_address() + self.registers.Y as u16;
+		let res = self.bus.ram.read(addr);
+		debug!("Fetched zero page, x: {}", res);
+		res
+	}
+
+	/// Its quite complex, read on internet: https://youtu.be/fWqBmmPQP40?t=721
+	fn fetch_indirect_zero_page_x(&self) -> u8 {
+		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
+		let indexed_addr = self.read_ram_address(addr);
+		let res = self.bus.ram.read(indexed_addr);
+		debug!("Fetched indirect zero page, x: {}", res);
+		res
+	}
+
+	/// This is NOT like indirect_zero_page_x . Explanation video: https://youtu.be/fWqBmmPQP40?t=751
+	/// Notice we add Y register AFTER and not before calculating indexed address
+	fn fetch_indirect_zero_page_y(&self) -> u8 {
+		let addr = self.read_instruction_zero_page_address();
+		let indexed_addr = self.read_ram_address(addr) + self.registers.Y as u16;
+		let res = self.bus.ram.read(indexed_addr);
+		debug!("Fetched indirect zero page, y: {}", res);
+		res
+	}
+
+	fn fetch_accumulator(&self) -> u8 {
+		let res = self.registers.A;
+		debug!("Fetched accumulator: {}", res);
 		res
 	}
 
@@ -164,22 +214,30 @@ impl CPU {
 		res
 	}
 
-	/// Indirect Indexed
-	/// Fetches the next byte after opcode, to be used in zero page
-	/// The calculation: $(zero page at absolute location ___) + Y
-	/// Because zero page is only 256 bytes long, the instruction's address requires 1 byte.
-	fn fetch_indirect_y(&self) -> u16 {
-		// Read zero-page index address
-		let zero_page_indexed_addr: u8 = self.bus.rom.read(self.registers.PC + 1); // read source
-		// Get the desired zero-page address
-		let addr: u16 = self.bus.ram.read_address(zero_page_indexed_addr as u16); // get the address the source points to
 
-		let res: u16 = self.registers.Y as u16 + addr;
-		debug!("Fetched indirect indexed Y: {}", res);
-		res
+	fn read_ram_address(&self, addr: u16) -> u16 {
+		let msb = self.bus.ram.read(addr) as u16;
+		let lsb = self.bus.ram.read(addr + 1) as u16;
+		(msb << 8) | lsb
 	}
 
-	fn modify_p(&mut self, bit: ProcessorStatusRegisterBits, job: ProcessorStatusRegisterBitChanges, fetched_memory: u16) {
+	fn read_rom_address(&self, addr: u16) -> u16 {
+		let msb = self.bus.rom.read(addr) as u16;
+		let lsb = self.bus.rom.read(addr + 1) as u16;
+		(msb << 8) | lsb
+	}
+
+	fn read_instruction_absolute_address(&self) -> u16 {
+		let msb = self.bus.rom.read(self.registers.PC +1) as u16;
+		let lsb = self.bus.rom.read(self.registers.PC +2) as u16;
+		(msb << 8) | lsb
+	}
+
+	fn read_instruction_zero_page_address(&self) -> u16 {
+		self.bus.rom.read(self.registers.PC + 1) as u16
+	}
+
+	fn modify_p(&mut self, bit: ProcessorStatusRegisterBits, job: ProcessorStatusRegisterBitChanges, fetched_memory: u8) {
 		//TODO: Complete
 		match job {
 			ProcessorStatusRegisterBitChanges::CLEARED => { 
@@ -218,31 +276,15 @@ impl CPU {
 		};
 	}
 
-	// fn fetch_indirect_y(&self) -> u8 {
-	// 	//TODO: Impliment
+	// fn nmi_interrupt(&self) {
+	// 	//TODO: Complete
 	// }
 
-	fn nmi_interrupt(&self) {
-		//TODO: Complete
-	}
+	// fn irq_interrupt(&self) {
+	// 	//TODO: Complete
+	// }
 
-	fn irq_interrupt(&self) {
-		//TODO: Complete
-	}
-
-	fn reset_interrupt(&self) {
-		//TODO: Complete
-	}
-}
-
-/// After each instruction, the bitflags of P register will change.
-/// For each bit flag, the change can be: 
-/// NONE (no change), MODIFIED (modified), SET (set the bit to 1), CLEARED (set the bit to 0), M6 (memory bit 6), M7 (memory bit 7)
-enum P_BitFlag_Operation {
-	NONE,
-	MODIFIED,
-	SET,
-	CLEAR,
-	M6,
-	M7
+	// fn reset_interrupt(&self) {
+	// 	//TODO: Complete
+	// }
 }
