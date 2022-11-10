@@ -15,7 +15,7 @@ pub struct Registers {
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "A:{},\tX:{},\tY:{},\tS:{},\tPC: {},\tP: {}", self.A, self.X, self.Y, self.S, self.PC, self.P)
+        write!(f, "A: {:#X},\tX: {:#X},\tY: {:#X},\tS: {:#X},\tPC: {:#X},\tP: {}", self.A, self.X, self.Y, self.S, self.PC, self.P)
     }
 }
 

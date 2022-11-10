@@ -26,7 +26,8 @@ pub struct CPU {
 
 impl CPU {
 	pub fn new(bus: Box<Bus>) -> Self {
-		let registers: Registers = Registers::default();
+		let mut registers: Registers = Registers::default();
+		registers.S = 0xFF; //TODO: Remove. The original NES does not initialize the stack register; Its random at startup. But I need this to debug my programs for now.
 		CPU {
 			registers,
 			bus,
@@ -47,27 +48,10 @@ impl CPU {
 		let addrmode = instruction.1;
 		let bytes = instruction.2;
 		let cycles = instruction.3;
-		let cycle_oops = instruction.4;
+		let oops_cycle = instruction.4;
 		let p_bits_change = instruction.5;
 
-		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, cycle_oops, p_bits_change);
-
-		match cycle_oops {
-			OopsCycle::NONE => { 
-				// don't change amount of cycles.
-			},
-			OopsCycle::PageBoundryCrossed => { 
-				//TODO: Impliment. For now, I don't change amount of cycles.
-
-				//add 1 to cycles if page boundary is crossed
-			},
-			OopsCycle::BranchOccursOn => {
-				//TODO: Impliment. For now, I don't change amount of cycles.
-
-				//add 1 to cycles if branch occurs on same page
-				//add 2 to cycles if branch occurs to different page
-			}
-		}
+		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle, p_bits_change);
 
 		fn panic_addressing_mode_unsupported(addrmode: AddressingMode) {
 			error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
@@ -76,12 +60,15 @@ impl CPU {
 
 		// Here we allowed to cast u8 to u16 because its the Address bus. The CPU only supports address bus of 16 signals (bits).
 		let fetched_memory: u8 = match addrmode {
-			AddressingMode::IMPLIED => 0, // Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
-			AddressingMode::ABSOLUTE => self.fetch_absolute(),
+			AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
+			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
 			// AddressingMode::RELATIVE => self.fetch_relative(),
-			AddressingMode::IMMEDIATE => self.fetch_immediate(),
-			AddressingMode::ACCUMULATOR => self.fetch_accumulator(),
+			AddressingMode::IMMEDIATE => 		self.fetch_immediate(),
+			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
 			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
+			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
+			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_x(),
+			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_y(),
 			
 			_ => {
 				panic_addressing_mode_unsupported(addrmode);
@@ -101,6 +88,11 @@ impl CPU {
 				// Load Accumulator with Memory
 				self.registers.A = fetched_memory;
 			}
+			Instructions::PHA => {
+				// Push Accumulator on Stack
+				self.push_stack(self.registers.A);
+			}
+
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
@@ -120,56 +112,73 @@ impl CPU {
 		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
 		self.registers.PC += bytes as u16;
 
-		self.cycles += 1;
+		self.cycles += cycles as u64;
+
+		match oops_cycle {
+			OopsCycle::NONE => { 
+				// don't change amount of cycles.
+			},
+			OopsCycle::PageBoundryCrossed => { 
+				//TODO: Impliment. For now, I don't change amount of cycles.
+
+				//add 1 to cycles if page boundary is crossed
+			},
+			OopsCycle::BranchOccursOn => {
+				//TODO: Impliment. For now, I don't change amount of cycles.
+
+				//add 1 to cycles if branch occurs on same page
+				//add 2 to cycles if branch occurs to different page
+			}
+		}
 	}
 
 	//TODO: Optimize all fetch functions as inline?
 
 	fn fetch_immediate(&self) -> u8 {
 		let res = self.bus.rom.read(self.registers.PC + 1);
-		debug!("Fetched immediate: {}", res);
+		debug!("Fetched immediate: {:#X}", res);
 		res
 	}
 
 	fn fetch_absolute(&self) -> u8 {
 		let abs_addr = self.read_instruction_absolute_address();
 		let res = self.bus.ram.read(abs_addr);
-		debug!("Fetched absolute: {}", res);
+		debug!("Fetched absolute: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address();
 		let res = self.bus.ram.read(addr);
-		debug!("Fetched from zero page: {}", res);
+		debug!("Fetched from zero page: {:#X}", res);
 		res
 	}
 
 	fn fetch_absolute_x(&self) -> u8 {
 		let addr = self.read_instruction_absolute_address() + self.registers.X as u16;
 		let res = self.bus.ram.read(addr);
-		debug!("Fetched absolute,X: {}", res);
+		debug!("Fetched absolute,X: {:#X}", res);
 		res
 	}
 
 	fn fetch_absolute_y(&self) -> u8 {
 		let addr = self.read_instruction_absolute_address() + self.registers.Y as u16;
 		let res = self.bus.ram.read(addr);
-		debug!("Fetched absolute,Y: {}", res);
+		debug!("Fetched absolute,Y: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page_x(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
 		let res = self.bus.ram.read(addr);
-		debug!("Fetched zero page, x: {}", res);
+		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page_y(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address() + self.registers.Y as u16;
 		let res = self.bus.ram.read(addr);
-		debug!("Fetched zero page, x: {}", res);
+		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
 
@@ -178,7 +187,7 @@ impl CPU {
 		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
 		let indexed_addr = self.read_ram_address(addr);
 		let res = self.bus.ram.read(indexed_addr);
-		debug!("Fetched indirect zero page, x: {}", res);
+		debug!("Fetched indirect zero page, x: {:#X}", res);
 		res
 	}
 
@@ -188,7 +197,7 @@ impl CPU {
 		let addr = self.read_instruction_zero_page_address();
 		let indexed_addr = self.read_ram_address(addr) + self.registers.Y as u16;
 		let res = self.bus.ram.read(indexed_addr);
-		debug!("Fetched indirect zero page, y: {}", res);
+		debug!("Fetched indirect zero page, y: {:#X}", res);
 		res
 	}
 
@@ -213,7 +222,6 @@ impl CPU {
 		debug!("Fetched relative: {}", res);
 		res
 	}
-
 
 	fn read_ram_address(&self, addr: u16) -> u16 {
 		let msb = self.bus.ram.read(addr) as u16;
@@ -287,4 +295,17 @@ impl CPU {
 	// fn reset_interrupt(&self) {
 	// 	//TODO: Complete
 	// }
+
+	fn push_stack(&mut self, data: u8) {
+		self.bus.ram.write(0x100 + self.registers.S as u16, data);
+		self.registers.S -= 1;
+		debug!("Pushed to stack: \t{:#X}", data);
+	}
+
+	fn pop_stack(&mut self) -> u8 {
+		let res = self.bus.ram.read(0x100 + self.registers.S as u16);
+		self.registers.S += 1;
+		debug!("Poped stack: \t{:#X}", res);
+		res
+	}
 }

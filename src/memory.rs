@@ -18,29 +18,40 @@ pub struct ROM {
 	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
 }
 
-fn debug_read_address(addr: u16) {
-	if addr >= 0 && addr <= 0xFF {
-		debug!("Reading from zero page, address: \t{}", addr);
-	} else if addr >= 0x100 && addr <= 0x1FF {
-		debug!("Reading from stack, address: \t{}", addr);
-	} else {
-		debug!("Reading from higher up, address: \t{}", addr);
-	}
-}
-
 impl RAM {
 	pub fn new() -> Self {
 		RAM { ram: Box::new([0; 65536]) }
 	}
 
+	fn debug_write(&self, addr: u16, data: u8) {
+		if addr <= 0xFF {
+			debug!("Writing to zero page, address: {:#X}, data: {:#X}", addr, data);
+		} else if addr >= 0x100 && addr <= 0x1FF {
+			debug!("Writing to stack, address: {:#X}, data: {:#X}", addr, data);
+		} else {
+			debug!("Writing to higher up, address: {:#X}, data: {:#X}", addr, data);
+		}
+	}
+
+	fn debug_read(&self, addr: u16) {
+		if addr <= 0xFF {
+			debug!("Reading from zero page, address: {:#X}", addr);
+		} else if addr >= 0x100 && addr <= 0x1FF {
+			debug!("Reading from stack, address: {:#X}", addr);
+		} else {
+			debug!("Reading from higher up, address: {:#X}", addr);
+		}
+	}
+	
 	/// Write a single byte to memory.
 	pub fn write(&mut self, addr: u16, data: u8) {
+		self.debug_write(addr, data);
 		self.ram[addr as usize] = data;
 	}
 
 	/// Read a single byte from memory.
 	pub fn read(&self, addr: u16) -> u8 {
-		debug_read_address(addr);
+		self.debug_read(addr);
 		self.ram[addr as usize]
 	}
 }
@@ -56,7 +67,6 @@ impl ROM {
 	
 	//TODO: Maybe convert to inline? This function can be called millions of times a second!
 	pub fn read(&self, addr: u16) -> u8 {
-		debug_read_address(addr);
 		self.rom[addr as usize]
 	}
 }

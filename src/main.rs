@@ -68,14 +68,24 @@ fn program_helloworld(rom_memory: &mut [u8;65_536]) -> u8 {
 	6
 }
 
-
+fn load_test_program(rom: &mut [u8;65_536]) -> u8 {
+	/*
+		LDA #$8C
+		PHA
+		LDA #$AB
+		PHA
+		NOP
+	*/
+	write_rom(rom, "A9 8C 48 A9 AB 48 EA");
+	5
+}
 
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
 
-	let assembly_lines_amount = program_helloworld(&mut rom_memory);
+	let assembly_lines_amount = load_test_program(&mut rom_memory);
 	
 	let rom: ROM = ROM {
 		rom: Box::new(rom_memory)
@@ -89,21 +99,38 @@ fn main() {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-	fn load_test_program(rom: &mut [u8;65_536]) {
+// 	fn load_test_program(rom: &mut [u8;65_536]) {
+// 		/*
+// 			LDA #$8C
+// 			PHA
+// 			NOP
+// 		*/
+// 		write_rom(rom, "A9 8C 48 EA");
+// 	}
 
-	}
+//     #[test]
+// 	fn test_cpu_component() {
+// 		SimpleLogger::new().init().unwrap();
 
-    #[test]
-	fn test_cpu_component() {
-		let mut rom_memory: [u8; 65_536] = [0;65_536];
-		load_test_program(&mut rom_memory);
+// 		let mut rom_memory: [u8; 65_536] = [0;65_536];
+// 		load_test_program(&mut rom_memory);
 		
-		let rom: ROM = ROM {
-			rom: Box::new(rom_memory)
-		};
-	}
-}
+// 		let rom: ROM = ROM {
+// 			rom: Box::new(rom_memory)
+// 		};
+
+// 		let mut bus = Box::new(Bus::new(rom));
+// 		let mut cpu = CPU::new(bus);
+
+// 		for _ in 0..3 {
+// 			cpu.clock_tick();
+// 		}
+		
+// 		let x = bus.ram.read(0x1FF);
+// 		assert_eq!(x, 0x8C);
+// 	}
+// }
