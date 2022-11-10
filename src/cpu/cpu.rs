@@ -92,7 +92,13 @@ impl CPU {
 				// Push Accumulator on Stack
 				self.push_stack(self.registers.A);
 			}
-
+			Instructions::NOP => {
+				// No Operation
+			}
+			Instructions::PLA => {
+				// Pull Accumulator from Stack
+				self.registers.A = self.pop_stack();
+			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
@@ -303,7 +309,8 @@ impl CPU {
 	}
 
 	fn pop_stack(&mut self) -> u8 {
-		let res = self.bus.ram.read(0x100 + self.registers.S as u16);
+		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to the next available byte, and not the head of the stack
+		let res = self.bus.ram.read(head_addr);
 		self.registers.S += 1;
 		debug!("Poped stack: \t{:#X}", res);
 		res

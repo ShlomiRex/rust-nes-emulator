@@ -1,5 +1,6 @@
 #![feature(mixed_integer_ops)]
 
+use log::info;
 use simple_logger::SimpleLogger;
 
 mod cpu;
@@ -68,16 +69,19 @@ fn program_helloworld(rom_memory: &mut [u8;65_536]) -> u8 {
 	6
 }
 
-fn load_test_program(rom: &mut [u8;65_536]) -> u8 {
+fn load_program_stack_operations(rom: &mut [u8;65_536]) -> u8 {
+	// Push "8c ab" onto stack and get it
 	/*
 		LDA #$8C
 		PHA
 		LDA #$AB
 		PHA
+		PLA
+		PLA
 		NOP
 	*/
-	write_rom(rom, "A9 8C 48 A9 AB 48 EA");
-	5
+	write_rom(rom, "A9 8C 48 A9 AB 48 68 68 EA");
+	7
 }
 
 fn main() {
@@ -85,7 +89,7 @@ fn main() {
 
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
 
-	let assembly_lines_amount = load_test_program(&mut rom_memory);
+	let assembly_lines_amount = load_program_stack_operations(&mut rom_memory);
 	
 	let rom: ROM = ROM {
 		rom: Box::new(rom_memory)
@@ -97,6 +101,8 @@ fn main() {
 	for _ in 0..assembly_lines_amount {
 		cpu.clock_tick();
 	}
+
+	info!("Finished running NES");
 }
 
 // #[cfg(test)]
