@@ -16,17 +16,18 @@ use program_loader::*;
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
+	// Create ROM and load it with simple program.
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
-
-	let assembly_lines_amount = load_program_reset_sp(&mut rom_memory);
-	
+	let assembly_lines_amount = load_program_overflow_2(&mut rom_memory);
 	let rom: ROM = ROM {
 		rom: Box::new(rom_memory)
 	};
 	
+	// Create CPU.
 	let bus = Box::new(Bus::new(rom));
 	let mut cpu = CPU::new(bus);
 
+	// Execute clocks.
 	for _ in 0..assembly_lines_amount {
 		cpu.clock_tick();
 	}

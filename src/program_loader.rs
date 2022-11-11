@@ -90,17 +90,17 @@ pub fn load_program_lda_negative(rom: &mut [u8;65_536]) -> u8 {
 	2
 }
 
-pub fn load_program_lda_carry(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_adc_carry(rom: &mut [u8;65_536]) -> u8 {
 	/*
 	LDA #$FF
-	ADC #$01
+	ADC #$81
 	NOP
 	*/
-	write_rom(rom, "a9 ff 69 01 ea");
+	write_rom(rom, "a9 ff 69 81 ea");
 	3
 }
 
-pub fn load_program_lda_decimal(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_adc_decimal(rom: &mut [u8;65_536]) -> u8 {
 	/*
 	SED
 	LDA #$09
@@ -120,3 +120,26 @@ pub fn load_program_reset_sp(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "68 ea");
 	2
 }
+
+pub fn load_program_overflow_1(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	CLC
+	LDA #$80
+	ADC #$FF
+	NOP
+	*/
+	write_rom(rom, "18 a9 80 69 ff ea");
+	4
+}
+
+pub fn load_program_overflow_2(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	CLC      ; 127 + 1 = 128, returns V = 1
+	LDA #$7F
+	ADC #$01
+	NOP
+	*/
+	write_rom(rom, "18 a9 7f 69 01 ea");
+	4
+}
+

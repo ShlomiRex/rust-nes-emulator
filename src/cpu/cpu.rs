@@ -1,5 +1,5 @@
 use core::panic;
-use log::{debug, error};
+use log::{debug, error, warn};
 
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode, ProcessorStatusRegisterBitChanges};
@@ -82,18 +82,23 @@ impl CPU {
 		match instr {
 			Instructions::LDY => {
 				// Load Index Y with Memory
+				// M -> Y
 				self.registers.Y = fetched_memory;
+
 				self.modify_p_n(fetched_memory);
 				self.modify_p_z(fetched_memory);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
+				// M -> A
 				self.registers.A = fetched_memory;
+
 				self.modify_p_n(fetched_memory);
 				self.modify_p_z(fetched_memory);
 			}
 			Instructions::PHA => {
 				// Push Accumulator on Stack
+				// push A
 				self.push_stack(self.registers.A);
 			}
 			Instructions::NOP => {
@@ -101,10 +106,12 @@ impl CPU {
 			}
 			Instructions::PLA => {
 				// Pull Accumulator from Stack
+				// pull A
 				let fetched_memory = self.pop_stack();
+				self.registers.A = fetched_memory;
+
 				self.modify_p_n(fetched_memory);
 				self.modify_p_z(fetched_memory);
-				self.registers.A = fetched_memory;
 			}
 			Instructions::CLC => {
 				// Clear Carry Flag
@@ -132,18 +139,61 @@ impl CPU {
 			}
 			Instructions::ADC => {
 				// Add Memory to Accumulator with Carry
+				// A + M + C -> A, C
+				// NOTE: This is the first instruction that actually does 'complex' arithmetic
+				// After reading a lot of forums, its actually the most complex thing to emulate, I must understand this
+
+				let a = self.registers.A;
+				let m = fetched_memory;
 				let carry: u8 = self.registers.P.get(ProcessorStatusRegisterBits::CARRY) as u8;
-				//let res = arithmetic_add(fetched_memory, carry);
-				//self.registers.A += res;  // TODO: Maybe I need to 'arithmetic add' also the result with register A?
-				//self.registers.A += fetched_memory + carry;
-				self.registers.A = self.arithmetic_add(self.registers.A, fetched_memory);
-				//TODO: Add carry with arithmetic
+
+				// Carry flag: Only for unsigned. If result is > 255, carry is set.
+				// Overflow flag: Only if (Positive+Positive=Negative) or (Negative+Negative=Positive)
+
+				// Perform regular unsigned addition, allowing arithmetic overflow.
+				let first_addition = a.overflowing_add(m);
+				let second_addition = first_addition.0.overflowing_add(carry);
+				let result = second_addition.0;
+
+				// Set A register.
+				self.registers.A = result;
+
+				// Set carry accordingly.
+				let new_carry = first_addition.1 || second_addition.1;
+
+				// Set overflow accordingly.
+				let is_a_negative = (a >> 7) == 1;
+				let is_m_negative = (m >> 7) == 1;
+				let is_result_negative = (result >> 7) == 1;
+				let new_overflow = 
+					(is_a_negative 				&& is_m_negative 			&& is_result_negative == false 	) ||
+					(is_a_negative == false 	&& is_m_negative == false 	&& is_result_negative 			);
+				
+				self.modify_p_n(self.registers.A);
+				self.modify_p_z(self.registers.A);
+				self.modify_p_c(new_carry);
+				self.modify_p_v(new_overflow);
+			}
+			Instructions::STA => {
+				// Store Accumulator in Memory
+				// A -> M
+
+				//TODO: Complete
+
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
 			}
 		}
+
+		/*
+		http://www.6502.org/tutorials/vflag.html
+		When the addition result is 0 to 255, the carry is cleared.
+		When the addition result is greater than 255, the carry is set.
+		When the subtraction result is 0 to 255, the carry is set.
+		When the subtraction result is less than 0, the carry is cleared.
+		*/
 
 		// Modify P register.
 		// self.modify_p(ProcessorStatusRegisterBits::NEGATIVE, 			p_bits_change.n, fetched_memory);
@@ -291,15 +341,20 @@ impl CPU {
 		self.bus.rom.read(self.registers.PC + 1) as u16
 	}
 
+	/// $0xFFFA, $0xFFFB
 	// fn nmi_interrupt(&self) {
 	// 	//TODO: Complete
 	// }
 
+	/// $0xFFFC, $0xFFFD
+	// fn res_interrupt(&self) {
+
+	/// $0xFFFE, $0xFFFF
 	// fn irq_interrupt(&self) {
 	// 	//TODO: Complete
 	// }
 
-	// fn res_interrupt(&self) {
+	
 	// 	//TODO: Complete
 	// }
 
@@ -310,7 +365,10 @@ impl CPU {
 	}
 
 	fn pop_stack(&mut self) -> u8 {
-		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to the next available byte, and not the head of the stack
+		if self.registers.S == 0xFF {
+			warn!("Stack pop: stack pointer is at beginning, overflowing stack pointer");
+		}
+		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to get the head (the stack is down going)
 		let res = self.bus.memory.read(head_addr);
 		self.registers.S = self.registers.S.wrapping_add(1);  // NOTE: We allow the programmer to overflow SP.
 		//self.registers.S += 1;
@@ -318,14 +376,19 @@ impl CPU {
 		res
 	}
 
-	fn  modify_p_n(&mut self, fetched_memory: u8) {
+	fn  modify_p_n(&mut self, value: u8) {
 		// If last bit (7) is 1, its negative
-		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (fetched_memory >> 7) == 1);
+		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
 	}
 
-	fn modify_p_z(&mut self, fetched_memory: u8) {
-		// If memory is 0, zero flag is 1
-		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, fetched_memory == 0); 
+	fn modify_p_z(&mut self, value: u8) {
+		// If value is 0, zero flag is 1
+		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, value == 0); 
+	}
+
+	fn modify_p_c(&mut self, carry: bool) {
+		// If carry detected, set carry flag to 1
+		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, carry);
 	}
 
 	fn modify_p_set(&mut self, bit: ProcessorStatusRegisterBits) {
@@ -333,16 +396,84 @@ impl CPU {
 	}
 
 	fn modify_p_clear(&mut self, bit: ProcessorStatusRegisterBits) {
-		self.registers.P.set(bit, true);
+		self.registers.P.set(bit, false);
 	}
 
-	fn arithmetic_add(&mut self, a: u8, b: u8) -> u8 {
-		let res = a.overflowing_add(b);
+	fn modify_p_v(&mut self, overflow: bool) {
+		// It's complex, read online, I let the instructions handle the logic
+		self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, overflow);
+	}
 
-		// Overflow occured!
-		// TODO: This is overflow, but online 6502 emulators say that only the CARRY flag bit is 1. When is OVERFLOW flag bit 1?
-		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, res.1);
+	fn decimal_mode(&self, data: u8) {
+		// TODO: Complete.
+		// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
+	}
 
-		res.0
+	// fn arithmetic_add_2(&mut self, a: u8, b: u8) -> (u8, bool) {
+	// 	self.arithmetic_add_3(a, b, 0)
+	// }
+
+	// /// Does a+b+c. If overflow occured in (a+b=d) or (d+c), returns true.
+	// /// I know, arithmetic overflow, why I set CARRY flag?
+	// /// Read here: http://www.6502.org/tutorials/vflag.html
+	// /// The overflow bitflag is not what you think.
+	// fn arithmetic_add_3(&mut self, a: u8, b: u8, c: u8) -> (u8, bool) {
+	// 	let res = a.overflowing_add(b);
+	// 	let res2 = res.0.overflowing_add(c);
+	// 	let overflow = res.1 || res2.1;
+
+	// 	let sum = res2.0;
+
+	// 	if (A^res) & ()
+
+	// 	(sum, overflow)
+	// }
+}
+
+mod test {
+    use log::info;
+    use simple_logger::SimpleLogger;
+
+    use crate::{bus::Bus, program_loader::*, memory::ROM};
+
+    use super::CPU;
+
+	use std::sync::Once;
+
+	static INIT: Once = Once::new();
+
+	static mut ROM: [u8; 65_536] = [0;65_536];
+
+	fn initialize() {
+		INIT.call_once(|| {
+			SimpleLogger::new().init().unwrap();
+
+			unsafe {
+				// Create ROM and load it with simple program.
+				//let mut rom_memory: [u8; 65_536] = [0;65_536];
+				let assembly_lines_amount = load_program_overflow_2(&mut ROM);
+				let rom: ROM = ROM {
+					rom: Box::new(ROM)
+				};
+				// Create CPU.
+				let bus = Box::new(Bus::new(rom));
+				let mut cpu = CPU::new(bus);
+			
+				// Execute clocks.
+				for _ in 0..assembly_lines_amount {
+					cpu.clock_tick();
+				}
+			}
+		});
+	}
+
+	#[test]
+	fn foo_test() {
+		initialize();
+		unsafe {
+			assert_eq!(ROM[0], 0x18);
+			load_program_reset_sp(&mut ROM);
+			assert_eq!(ROM[0], 0x68);
+		}
 	}
 }
