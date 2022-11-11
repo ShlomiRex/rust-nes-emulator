@@ -2,6 +2,14 @@
 // Address is 2 bytes, usize is 64 bits on x64 and 32 bits on x86.
 // So converting u16 to usize never overflows, so casting is no problem.
 
+
+// https://web.archive.org/web/20210803073202/http://www.obelisk.me.uk/6502/architecture.html
+// Zero page: 0x0000 - 0x00FF : is the focus of a number of special addressing modes that result in shorter (and quicker) instructions or allow indirect access to the memory (256 bytes of memory)
+// Stack: 	  0x0100 - 0x01FF : is reserved for the system stack and which cannot be relocated. (256 bytes of stack!)
+// Reserved memory: 0xFFFA - 0xFFFF (last 6 bytes) : must be programmed with the addresses of the non-maskable interrupt handler ($FFFA/B), the power on reset location ($FFFC/D) and the BRK/interrupt request handler ($FFFE/F) respectively.
+
+
+
 // Address space: 		0x0000 - 0xFFFF (64k)
 // Zero page: 			0x0000 - 0x00FF (256 bytes)
 // Stack: 				0x0100 - 0x01FF (after zero page, 256 bytes)
@@ -10,17 +18,18 @@ extern crate hex;
 
 use log::debug;
 
-pub struct RAM {
-	ram: Box<[u8; 65_536]>
+/// Addressable memory (64kb). Includes zero page, CPU ram, PPU registers, Cartidge memory, basically all available addressable memory.
+pub struct MemoryBus {
+	memory: Box<[u8; 65_536]>
 }
 
 pub struct ROM {
 	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
 }
 
-impl RAM {
+impl MemoryBus {
 	pub fn new() -> Self {
-		RAM { ram: Box::new([0; 65536]) }
+		MemoryBus { memory: Box::new([0; 65536]) }
 	}
 
 	fn debug_write(&self, addr: u16, data: u8) {
@@ -46,13 +55,13 @@ impl RAM {
 	/// Write a single byte to memory.
 	pub fn write(&mut self, addr: u16, data: u8) {
 		self.debug_write(addr, data);
-		self.ram[addr as usize] = data;
+		self.memory[addr as usize] = data;
 	}
 
 	/// Read a single byte from memory.
 	pub fn read(&self, addr: u16) -> u8 {
 		self.debug_read(addr);
-		self.ram[addr as usize]
+		self.memory[addr as usize]
 	}
 }
 
@@ -88,7 +97,7 @@ mod tests {
 
     #[test]
     fn ram_test() {
-		let mut ram: RAM = RAM { ram: Box::new([0; 65536]) };
+		let mut ram: MemoryBus = MemoryBus { memory: Box::new([0; 65536]) };
 		let addr: u16 = 0x1234;
 		ram.write(addr, 0xAB);
 		ram.write(addr + 1, 0xCD);

@@ -83,10 +83,14 @@ impl CPU {
 			Instructions::LDY => {
 				// Load Index Y with Memory
 				self.registers.Y = fetched_memory;
+				self.modify_p_n(fetched_memory);
+				self.modify_p_z(fetched_memory);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
 				self.registers.A = fetched_memory;
+				self.modify_p_n(fetched_memory);
+				self.modify_p_z(fetched_memory);
 			}
 			Instructions::PHA => {
 				// Push Accumulator on Stack
@@ -97,32 +101,44 @@ impl CPU {
 			}
 			Instructions::PLA => {
 				// Pull Accumulator from Stack
-				self.registers.A = self.pop_stack();
+				let fetched_memory = self.pop_stack();
+				self.modify_p_n(fetched_memory);
+				self.modify_p_z(fetched_memory);
+				self.registers.A = fetched_memory;
 			}
 			Instructions::CLC => {
 				// Clear Carry Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, false);
+				self.modify_p_clear(ProcessorStatusRegisterBits::CARRY);
 			}
 			Instructions::CLD => {
 				// Clear Decimal Mode
-				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, false);
+				self.modify_p_clear(ProcessorStatusRegisterBits::DECIMAL);
 			}
 			Instructions::CLI => {
 				// Clear Interrupt Disable Bit
-				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, false);
+				self.modify_p_clear(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
 			}
 			Instructions::CLV => {
 				// Clear Overflow Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, false);
+				self.modify_p_clear(ProcessorStatusRegisterBits::OVERFLOW);
 			}
 			Instructions::SEC => {
 				// Set Carry Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, true);
+				self.modify_p_set(ProcessorStatusRegisterBits::CARRY);
 			}
-			// Instructions::ADC => {
-			// 	// Add Memory to Accumulator with Carry
-
-			// }
+			Instructions::SED => {
+				// Set Decimal Flag
+				self.modify_p_set(ProcessorStatusRegisterBits::DECIMAL);
+			}
+			Instructions::ADC => {
+				// Add Memory to Accumulator with Carry
+				let carry: u8 = self.registers.P.get(ProcessorStatusRegisterBits::CARRY) as u8;
+				//let res = arithmetic_add(fetched_memory, carry);
+				//self.registers.A += res;  // TODO: Maybe I need to 'arithmetic add' also the result with register A?
+				//self.registers.A += fetched_memory + carry;
+				self.registers.A = self.arithmetic_add(self.registers.A, fetched_memory);
+				//TODO: Add carry with arithmetic
+			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
@@ -130,12 +146,12 @@ impl CPU {
 		}
 
 		// Modify P register.
-		self.modify_p(ProcessorStatusRegisterBits::NEGATIVE, 			p_bits_change.n, fetched_memory);
-		self.modify_p(ProcessorStatusRegisterBits::ZERO, 				p_bits_change.z, fetched_memory);
-		self.modify_p(ProcessorStatusRegisterBits::CARRY, 				p_bits_change.c, fetched_memory);
-		self.modify_p(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, 	p_bits_change.i, fetched_memory);
-		self.modify_p(ProcessorStatusRegisterBits::DECIMAL, 			p_bits_change.d, fetched_memory);
-		self.modify_p(ProcessorStatusRegisterBits::OVERFLOW, 			p_bits_change.v, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::NEGATIVE, 			p_bits_change.n, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::ZERO, 				p_bits_change.z, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::CARRY, 				p_bits_change.c, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, 	p_bits_change.i, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::DECIMAL, 			p_bits_change.d, fetched_memory);
+		// self.modify_p(ProcessorStatusRegisterBits::OVERFLOW, 			p_bits_change.v, fetched_memory);
 
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
@@ -172,42 +188,42 @@ impl CPU {
 
 	fn fetch_absolute(&self) -> u8 {
 		let abs_addr = self.read_instruction_absolute_address();
-		let res = self.bus.ram.read(abs_addr);
+		let res = self.bus.memory.read(abs_addr);
 		debug!("Fetched absolute: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address();
-		let res = self.bus.ram.read(addr);
+		let res = self.bus.memory.read(addr);
 		debug!("Fetched from zero page: {:#X}", res);
 		res
 	}
 
 	fn fetch_absolute_x(&self) -> u8 {
 		let addr = self.read_instruction_absolute_address() + self.registers.X as u16;
-		let res = self.bus.ram.read(addr);
+		let res = self.bus.memory.read(addr);
 		debug!("Fetched absolute,X: {:#X}", res);
 		res
 	}
 
 	fn fetch_absolute_y(&self) -> u8 {
 		let addr = self.read_instruction_absolute_address() + self.registers.Y as u16;
-		let res = self.bus.ram.read(addr);
+		let res = self.bus.memory.read(addr);
 		debug!("Fetched absolute,Y: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page_x(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
-		let res = self.bus.ram.read(addr);
+		let res = self.bus.memory.read(addr);
 		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page_y(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address() + self.registers.Y as u16;
-		let res = self.bus.ram.read(addr);
+		let res = self.bus.memory.read(addr);
 		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
@@ -216,7 +232,7 @@ impl CPU {
 	fn fetch_indirect_zero_page_x(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
 		let indexed_addr = self.read_ram_address(addr);
-		let res = self.bus.ram.read(indexed_addr);
+		let res = self.bus.memory.read(indexed_addr);
 		debug!("Fetched indirect zero page, x: {:#X}", res);
 		res
 	}
@@ -226,7 +242,7 @@ impl CPU {
 	fn fetch_indirect_zero_page_y(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address();
 		let indexed_addr = self.read_ram_address(addr) + self.registers.Y as u16;
-		let res = self.bus.ram.read(indexed_addr);
+		let res = self.bus.memory.read(indexed_addr);
 		debug!("Fetched indirect zero page, y: {:#X}", res);
 		res
 	}
@@ -254,8 +270,8 @@ impl CPU {
 	}
 
 	fn read_ram_address(&self, addr: u16) -> u16 {
-		let msb = self.bus.ram.read(addr) as u16;
-		let lsb = self.bus.ram.read(addr + 1) as u16;
+		let msb = self.bus.memory.read(addr) as u16;
+		let lsb = self.bus.memory.read(addr + 1) as u16;
 		(msb << 8) | lsb
 	}
 
@@ -275,45 +291,6 @@ impl CPU {
 		self.bus.rom.read(self.registers.PC + 1) as u16
 	}
 
-	fn modify_p(&mut self, bit: ProcessorStatusRegisterBits, job: ProcessorStatusRegisterBitChanges, fetched_memory: u8) {
-		//TODO: Complete
-		match job {
-			ProcessorStatusRegisterBitChanges::CLEARED => { 
-				self.registers.P.set(bit, false) 
-			},
-			ProcessorStatusRegisterBitChanges::SET => { 
-				self.registers.P.set(bit, true) 
-			},
-			ProcessorStatusRegisterBitChanges::MODIFIED => { 
-				match bit {
-					ProcessorStatusRegisterBits::ZERO => { 
-						// If memory is 0, zero flag is 1
-						self.registers.P.set(bit, fetched_memory == 0); 
-					}
-					ProcessorStatusRegisterBits::NEGATIVE => { 
-						// If last bit (7) is 1, its negative
-						self.registers.P.set(bit, (fetched_memory >> 7) == 1);
-					}
-					_ => {
-						panic!("The P bit to modify is unsupported: {:?}, yet", bit);
-					}
-				}
-			},
-			ProcessorStatusRegisterBitChanges::M6 => {
-
-			},
-			ProcessorStatusRegisterBitChanges::M7 => {
-
-			}
-			ProcessorStatusRegisterBitChanges::FromStack => {
-
-			}
-			ProcessorStatusRegisterBitChanges::NotModified => {
-				//do nothing
-			}
-		};
-	}
-
 	// fn nmi_interrupt(&self) {
 	// 	//TODO: Complete
 	// }
@@ -322,21 +299,50 @@ impl CPU {
 	// 	//TODO: Complete
 	// }
 
-	// fn reset_interrupt(&self) {
+	// fn res_interrupt(&self) {
 	// 	//TODO: Complete
 	// }
 
 	fn push_stack(&mut self, data: u8) {
-		self.bus.ram.write(0x100 + self.registers.S as u16, data);
+		self.bus.memory.write(0x100 + self.registers.S as u16, data);
 		self.registers.S -= 1;
 		debug!("Pushed to stack: \t{:#X}", data);
 	}
 
 	fn pop_stack(&mut self) -> u8 {
 		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to the next available byte, and not the head of the stack
-		let res = self.bus.ram.read(head_addr);
-		self.registers.S += 1;
+		let res = self.bus.memory.read(head_addr);
+		self.registers.S = self.registers.S.wrapping_add(1);  // NOTE: We allow the programmer to overflow SP.
+		//self.registers.S += 1;
 		debug!("Poped stack: \t{:#X}", res);
 		res
+	}
+
+	fn  modify_p_n(&mut self, fetched_memory: u8) {
+		// If last bit (7) is 1, its negative
+		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (fetched_memory >> 7) == 1);
+	}
+
+	fn modify_p_z(&mut self, fetched_memory: u8) {
+		// If memory is 0, zero flag is 1
+		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, fetched_memory == 0); 
+	}
+
+	fn modify_p_set(&mut self, bit: ProcessorStatusRegisterBits) {
+		self.registers.P.set(bit, true);
+	}
+
+	fn modify_p_clear(&mut self, bit: ProcessorStatusRegisterBits) {
+		self.registers.P.set(bit, true);
+	}
+
+	fn arithmetic_add(&mut self, a: u8, b: u8) -> u8 {
+		let res = a.overflowing_add(b);
+
+		// Overflow occured!
+		// TODO: This is overflow, but online 6502 emulators say that only the CARRY flag bit is 1. When is OVERFLOW flag bit 1?
+		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, res.1);
+
+		res.0
 	}
 }
