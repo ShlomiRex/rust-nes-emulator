@@ -414,7 +414,8 @@ impl CPU {
 
 	/// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
 	fn decimal_mode(&self, data: u8) -> u8 {
-		let decoded = <[u8; 1]>::from_hex(data.to_string()).unwrap();
+		let hex_str = data.to_string();
+		let decoded = <[u8; 1]>::from_hex(hex_str).expect("Could not convert decimal");
 		decoded[0]
 	}
 
@@ -513,5 +514,34 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x11);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.A, 0x80);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.A, 0x7F);
+
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.A, 0x80);
+
+		cpu.clock_tick();
 	}
 }
