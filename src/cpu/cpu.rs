@@ -5,6 +5,8 @@ use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode, ProcessorStatusRegisterBitChanges};
 use crate::bus::Bus;
 
+use hex::FromHex;
+
 // /// # 8-bit databus
 // /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
 // struct DataBus;
@@ -153,9 +155,15 @@ impl CPU {
 				// Perform regular unsigned addition, allowing arithmetic overflow.
 				let first_addition = a.overflowing_add(m);
 				let second_addition = first_addition.0.overflowing_add(carry);
-				let result = second_addition.0;
+				let mut result = second_addition.0;
 
 				// Set A register.
+
+				// Check decimal mode, check if CPU is in binary/decimal coded mode
+				// TODO: I read that NES doesn't use this mode. Maybe remove it so I don't have any problems?
+				if self.registers.P.get(ProcessorStatusRegisterBits::DECIMAL) {
+					result = self.decimal_mode(result);
+				}
 				self.registers.A = result;
 
 				// Set carry accordingly.
@@ -404,9 +412,10 @@ impl CPU {
 		self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, overflow);
 	}
 
-	fn decimal_mode(&self, data: u8) {
-		// TODO: Complete.
-		// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
+	/// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
+	fn decimal_mode(&self, data: u8) -> u8 {
+		let decoded = <[u8; 1]>::from_hex(data.to_string()).unwrap();
+		decoded[0]
 	}
 
 	// fn arithmetic_add_2(&mut self, a: u8, b: u8) -> (u8, bool) {
@@ -430,50 +439,79 @@ impl CPU {
 	// }
 }
 
-mod test {
-    use log::info;
-    use simple_logger::SimpleLogger;
-
-    use crate::{bus::Bus, program_loader::*, memory::ROM};
+#[cfg(test)]
+mod tests {
+    use crate::{bus::Bus, program_loader::*, memory::ROM, cpu::registers::ProcessorStatusRegisterBits};
 
     use super::CPU;
 
-	use std::sync::Once;
+	fn initialize(f: fn(&mut [u8;65_536]) -> u8) -> CPU {
+		// Create ROM and load it with any program, for testing.
+		let mut rom_memory: [u8; 65_536] = [0;65_536];
+		f(&mut rom_memory);  // call f - load program
+		let rom: ROM = ROM {
+			rom: Box::new(rom_memory)
+		};
+		let bus = Box::new(Bus::new(rom));
+		let cpu = CPU::new(bus);
 
-	static INIT: Once = Once::new();
+		cpu
+	}
 
-	static mut ROM: [u8; 65_536] = [0;65_536];
+	// NOTE: For each program, the last cpu tick is NOP
 
-	fn initialize() {
-		INIT.call_once(|| {
-			SimpleLogger::new().init().unwrap();
+	#[test]
+	fn stack_test() {
+		let mut cpu = initialize(load_program_stack);
 
-			unsafe {
-				// Create ROM and load it with simple program.
-				//let mut rom_memory: [u8; 65_536] = [0;65_536];
-				let assembly_lines_amount = load_program_overflow_2(&mut ROM);
-				let rom: ROM = ROM {
-					rom: Box::new(ROM)
-				};
-				// Create CPU.
-				let bus = Box::new(Bus::new(rom));
-				let mut cpu = CPU::new(bus);
-			
-				// Execute clocks.
-				for _ in 0..assembly_lines_amount {
-					cpu.clock_tick();
-				}
-			}
-		});
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x8C);
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x1FF), 0x8C);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xAB);
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x1FE), 0xAB);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xAB);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x8C);
+		assert_eq!(cpu.registers.S, 0xFF);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.S, 0x00);
+		cpu.clock_tick();
 	}
 
 	#[test]
-	fn foo_test() {
-		initialize();
-		unsafe {
-			assert_eq!(ROM[0], 0x18);
-			load_program_reset_sp(&mut ROM);
-			assert_eq!(ROM[0], 0x68);
-		}
+	fn lda_test() {
+		let mut cpu = initialize(load_program_lda);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFF);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn adc_test() {
+		let mut cpu = initialize(load_program_adc);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x09);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x0B);
+		
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x11);
 	}
 }
