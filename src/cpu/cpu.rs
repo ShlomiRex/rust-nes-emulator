@@ -210,7 +210,6 @@ impl CPU {
 			Instructions::INC => {
 				// Increment Memory by One
 				// M + 1 -> M
-				// TODO: Complete
 				let fetched_memory = self.fetch_memory(&addrmode);
 				let new_memory = fetched_memory.wrapping_add(1);
 
@@ -220,17 +219,17 @@ impl CPU {
 				self.modify_p_n(new_memory);
 				self.modify_p_z(new_memory);
 			}
-			// Instructions::RTI => {
-			// 	// Return from Interrupt
-			// 	// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
-			// 	// pull SR, pull PC
-			// 	// TODO: Complete
-			// }
-			// Instructions::CMP => {
-			// 	// Compare Memory with Accumulator
-			// 	// A - M
+			Instructions::RTI => {
+				// Return from Interrupt
+				// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
+				// pull SR, pull PC
+				// TODO: Complete
+			}
+			Instructions::CMP => {
+				// Compare Memory with Accumulator
+				// A - M
 				
-			// }
+			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
@@ -262,8 +261,6 @@ impl CPU {
 		}
 	}
 
-	//TODO: Optimize all fetch functions as inline?
-
 	/// Read immediate from ROM, not from memory!
 	fn fetch_immediate(&self) -> u8 {
 		let res = self.bus.rom.read(self.registers.PC + 1);
@@ -280,7 +277,7 @@ impl CPU {
 
 	fn fetch_zero_page(&self) -> u8 {
 		let addr = self.read_instruction_zero_page_address();
-		let res = self.bus.memory.read(addr);
+		let res = self.bus.memory.read(addr as u16);
 		debug!("Fetched from zero page: {:#X}", res);
 		res
 	}
@@ -300,37 +297,43 @@ impl CPU {
 	}
 
 	fn fetch_zero_page_x(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
-		let res = self.bus.memory.read(addr);
+		// Zero page with index X can wrap (overflow) on u8. NOTE: Zero page is always u8, 1 byte. NOT 2 bytes.
+		// Example: instr_addr=0x0B, X=0xFF, results in overflow, and we get 0x0A.
+		// After this calculation we can convert the zeropage address to absolute address (2 bytes).
+		let instr_addr = self.read_instruction_zero_page_address();
+		let addr = instr_addr.wrapping_add(self.registers.X);
+		let res = self.bus.memory.read(addr as u16);
 		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
 
 	fn fetch_zero_page_y(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address() + self.registers.Y as u16;
-		let res = self.bus.memory.read(addr);
+		let instr_addr = self.read_instruction_zero_page_address();
+		let addr = instr_addr.wrapping_add(self.registers.Y);
+		let res = self.bus.memory.read(addr as u16);
 		debug!("Fetched zero page, x: {:#X}", res);
 		res
 	}
 
-	/// Its quite complex, read on internet: https://youtu.be/fWqBmmPQP40?t=721
-	fn fetch_indirect_zero_page_x(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address() + self.registers.X as u16;
-		let indexed_addr = self.read_ram_address(addr);
-		let res = self.bus.memory.read(indexed_addr);
-		debug!("Fetched indirect zero page, x: {:#X}", res);
-		res
-	}
+	// /// Its quite complex, read on internet: https://youtu.be/fWqBmmPQP40?t=721
+	// fn fetch_indirect_zero_page_x(&self) -> u8 {
+	// 	let instr_addr = self.read_instruction_zero_page_address();
+	// 	let addr = instr_addr.wrapping_add(self.registers.X);
+	// 	let indexed_addr = self.read_ram_address(addr as u16);
+	// 	let res = self.bus.memory.read(indexed_addr);
+	// 	debug!("Fetched indirect zero page, x: {:#X}", res);
+	// 	res
+	// }
 
-	/// This is NOT like indirect_zero_page_x . Explanation video: https://youtu.be/fWqBmmPQP40?t=751
-	/// Notice we add Y register AFTER and not before calculating indexed address
-	fn fetch_indirect_zero_page_y(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address();
-		let indexed_addr = self.read_ram_address(addr) + self.registers.Y as u16;
-		let res = self.bus.memory.read(indexed_addr);
-		debug!("Fetched indirect zero page, y: {:#X}", res);
-		res
-	}
+	// /// This is NOT like indirect_zero_page_x . Explanation video: https://youtu.be/fWqBmmPQP40?t=751
+	// /// Notice we add Y register AFTER and not before calculating indexed address
+	// fn fetch_indirect_zero_page_y(&self) -> u8 {
+	// 	let addr = self.read_instruction_zero_page_address();
+	// 	let indexed_addr = self.read_ram_address(addr as u16) + self.registers.Y as u16;
+	// 	let res = self.bus.memory.read(indexed_addr);
+	// 	debug!("Fetched indirect zero page, y: {:#X}", res);
+	// 	res
+	// }
 
 	fn fetch_accumulator(&self) -> u8 {
 		let res = self.registers.A;
@@ -372,26 +375,18 @@ impl CPU {
 		(msb << 8) | lsb
 	}
 
-	fn read_instruction_zero_page_address(&self) -> u16 {
-		self.bus.rom.read(self.registers.PC + 1) as u16
+	fn read_instruction_zero_page_address(&self) -> u8 {
+		self.bus.rom.read(self.registers.PC + 1)
 	}
 
 	/// $0xFFFA, $0xFFFB
-	// fn nmi_interrupt(&self) {
-	// 	//TODO: Complete
-	// }
+	// fn nmi_interrupt(&self)
 
 	/// $0xFFFC, $0xFFFD
-	// fn res_interrupt(&self) {
+	// fn res_interrupt(&self)
 
 	/// $0xFFFE, $0xFFFF
-	// fn irq_interrupt(&self) {
-	// 	//TODO: Complete
-	// }
-
-	
-	// 	//TODO: Complete
-	// }
+	// fn irq_interrupt(&self)
 
 	fn push_stack(&mut self, data: u8) {
 		self.bus.memory.write(0x100 + self.registers.S as u16, data);
@@ -470,7 +465,7 @@ impl CPU {
 		match addrmode {
 			AddressingMode::IMMEDIATE => self.read_instruction_immediate_address(),
 			AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
-			AddressingMode::ZEROPAGE => self.read_instruction_zero_page_address(),
+			AddressingMode::ZEROPAGE => self.read_instruction_zero_page_address() as u16,
 			_ => todo!()
 		}
 	}
@@ -481,29 +476,12 @@ impl CPU {
 		res
 	}
 
-	// fn arithmetic_add_2(&mut self, a: u8, b: u8) -> (u8, bool) {
-	// 	self.arithmetic_add_3(a, b, 0)
-	// }
-
-	// /// Does a+b+c. If overflow occured in (a+b=d) or (d+c), returns true.
-	// /// I know, arithmetic overflow, why I set CARRY flag?
-	// /// Read here: http://www.6502.org/tutorials/vflag.html
-	// /// The overflow bitflag is not what you think.
-	// fn arithmetic_add_3(&mut self, a: u8, b: u8, c: u8) -> (u8, bool) {
-	// 	let res = a.overflowing_add(b);
-	// 	let res2 = res.0.overflowing_add(c);
-	// 	let overflow = res.1 || res2.1;
-
-	// 	let sum = res2.0;
-
-	// 	if (A^res) & ()
-
-	// 	(sum, overflow)
-	// }
 }
 
 #[cfg(test)]
 mod tests {
+    use simple_logger::SimpleLogger;
+
     use crate::{bus::Bus, program_loader::*, memory::ROM, cpu::registers::ProcessorStatusRegisterBits};
 
     use super::CPU;
@@ -658,6 +636,32 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
 		assert_eq!(cpu.bus.memory.read(0x0A), 0x00);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_zeropage_x() {
+		SimpleLogger::new().init().unwrap();
+
+		let mut cpu = initialize(load_program_zeropage_x);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x0A), 0xFE);
+		assert_ne!(cpu.registers.A, 0xFE);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFE);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0x0B);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFC);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
 
 		cpu.clock_tick();
 	}

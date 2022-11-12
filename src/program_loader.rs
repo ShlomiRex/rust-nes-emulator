@@ -97,3 +97,22 @@ pub fn load_program_zeropage_store_load_and_memory_increment(rom: &mut [u8;65_53
 	write_rom(rom, "a2 fe 86 0a e6 0a e6 0a ea");
 	5
 }
+
+pub fn load_program_zeropage_x(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDX #$FE 	; Load index X
+	STX $0A 	; Store index in zero page (non-indexed)
+	LDA $0A 	; Load from zero page (non-indexed)
+
+	LDX #$FF 	; We want to access zeropage indexed (0x05 + 0x05 = 0x0A)
+	LDA #$00 	; Reset A so we can examine if we got to the same address
+	LDA $0B,X 	; We load at zeropage, address: (0xFF + 0x0B = 0x0A, zeropage is overflowing 1 byte). So A should be 0xFE.
+
+	LDX #$0B 	; We want to access 0x0A again, in next instruction we access: 0x0B + 0xFF = 0x0A memory.
+	ADC $FF,X 	; We add A (0xFE) with memory (at 0x0A), which is (0xFE + 0xFE = 0x1FC, but carry is 1, so its 0xFC)
+
+	NOP
+	*/
+	write_rom(rom, "a2 fe 86 0a a5 0a a2 ff a9 00 b5 0b a2 0b 75 ff ea");
+	9
+}

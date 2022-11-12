@@ -66,15 +66,6 @@ impl MemoryBus {
 }
 
 impl ROM {
-	// pub fn new() -> Self {
-	// 	ROM { rom: Box::new([0; 65536]) }
-	// }
-
-	pub fn new(rom: Box<[u8; 65536]>) -> Self {
-		ROM { rom }
-	}
-	
-	//TODO: Maybe convert to inline? This function can be called millions of times a second!
 	pub fn read(&self, addr: u16) -> u8 {
 		self.rom[addr as usize]
 	}
