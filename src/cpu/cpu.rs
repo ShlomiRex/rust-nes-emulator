@@ -660,11 +660,4 @@ mod tests {
 		cpu.clock_tick();
 	}
 
-	#[test]
-	fn test_relative() {
-		let mut cpu = initialize();
-
-		
-	}
-
 }
