@@ -378,6 +378,7 @@ impl CPU {
 	}
 
 	/// Extract the address from instruction. This function will handle indirect addresses aswell.
+	/// All store instructions use this.
 	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
 			AddressingMode::IMMEDIATE => {
@@ -387,20 +388,30 @@ impl CPU {
 			}
 			AddressingMode::ABSOLUTE => 	self.read_instruction_absolute_address(),
 			AddressingMode::ZEROPAGE => 	self.read_instruction_zero_page_address() as u16,
+			AddressingMode::INDIRECT => 	self.read_instruction_indirect_address(),
 			_ => todo!()
 		}
 	}
 
+	/// Reads address stored in ROM at the current PC.
 	fn read_instruction_absolute_address(&self) -> u16 {
 		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
 		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
 		(msb << 8) | lsb
 	}
 
+	/// Reads zero-page address stored in ROM at the current PC.
 	fn read_instruction_zero_page_address(&self) -> u8 {
 		self.bus.rom.read(self.registers.PC + 1)
 	}
 
+	/// Returns address stored in memory, from the absolute address in ROM, at the current PC.
+	fn read_instruction_indirect_address(&self) -> u16 {
+		let indirect_addr = self.read_instruction_absolute_address();
+		let lsb = self.bus.memory.read(indirect_addr) as u16;
+		let msb = self.bus.memory.read(indirect_addr + 1) as u16;
+		(msb << 8) | lsb
+	}
 
 }
 
@@ -625,20 +636,20 @@ mod tests {
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
 	}
 
-	// #[test]
-	// fn test_jmp_indirect() {
-	// 	let mut cpu = initialize(load_program_jmp_indirect);
+	#[test]
+	fn test_jmp_indirect() {
+		let mut cpu = initialize(load_program_jmp_indirect);
 
-	// 	cpu.clock_tick();
-	// 	cpu.clock_tick();
-	// 	assert_eq!(cpu.bus.memory.read(0x00AB), 0x05);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x00AB), 0x05);
 
-	// 	cpu.clock_tick();
-	// 	cpu.clock_tick();
-	// 	assert_eq!(cpu.bus.memory.read(0x00AC), 0xFF);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x00AC), 0xFF);
 
-	// 	cpu.clock_tick();
-	// 	assert_eq!(cpu.registers.PC, 0xFF05);
-	// }
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.PC, 0xFF05);
+	}
 
 }

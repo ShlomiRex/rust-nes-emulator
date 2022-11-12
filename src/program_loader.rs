@@ -135,6 +135,8 @@ pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
 }
 
 pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
+	// Execute 1 byte long instruction at memory location 0x0001
+
 	/*
 	LDX #$F8 	; We load instruction 0xF8 (SED) to X
 	STX $0001 	; Store instruction in $0001
@@ -146,3 +148,16 @@ pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
 	4  	// 4 instructions, the last instruction should be executed (0xF8 = SED).
 }
 
+pub fn load_program_jmp_indirect(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+	STA $00AB
+
+	LDA #$FF
+	STA $00AC
+
+	JMP ($00AB)
+	*/
+	write_rom(rom, "a9 05 8d ab 00 a9 ff 8d ac 00 6c ab 00");
+	5
+}
