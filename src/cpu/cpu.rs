@@ -7,24 +7,11 @@ use crate::bus::Bus;
 
 use hex::FromHex;
 
-// /// # 8-bit databus
-// /// Not to be confused with 'the bus', the data bus is 8 bits (8 input signals).
-// struct DataBus;
-// /// This signal allows to halt or single cycle the microprocessor on all cycles except write cycles.
-// struct ReadyInputSignal;
-// /// Request that an interrupt sequence begin within the microprocessor.
-// struct InterruptRequestSignal;
-// /// Request that a non-maskable interrupt sequence be generated within the microprocessor.
-// struct NonMaskableInterruptSignal;
-// /// Sets the overflow bit in the Processor Status Register.
-// struct SetOverflowSignal;
-
 pub struct CPU {
 	registers: Registers,
 	bus: Box<Bus>,
 	cycles: u64
 }
-
 
 impl CPU {
 	pub fn new(bus: Box<Bus>) -> Self {
@@ -38,6 +25,8 @@ impl CPU {
 	}
 
 	/// A single clock cycle is executed here.
+	/// Original NES CPU needs multiple cycles to execute instruction.
+	/// Emulation does not do that; Its much simpler to do everything at once, and emulate the cycles.
 	pub fn clock_tick(&mut self) {
 		debug!("Tick, cycle: {}", self.cycles);
 		debug!("{}", self.registers);
@@ -51,9 +40,7 @@ impl CPU {
 		let bytes = instruction.2;
 		let cycles = instruction.3;
 		let oops_cycle = instruction.4;
-		// let p_bits_change = instruction.5;
 
-		//debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle, p_bits_change);
 		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle);
 
 		//The main brains of the CPU. Execute instruction.
@@ -303,26 +290,6 @@ impl CPU {
 		debug!("Fetched indexed zero page: {:#X}", res);
 		res
 	}
-
-	// /// Its quite complex, read on internet: https://youtu.be/fWqBmmPQP40?t=721
-	// fn fetch_indirect_zero_page_x(&self) -> u8 {
-	// 	let instr_addr = self.read_instruction_zero_page_address();
-	// 	let addr = instr_addr.wrapping_add(self.registers.X);
-	// 	let indexed_addr = self.read_ram_address(addr as u16);
-	// 	let res = self.bus.memory.read(indexed_addr);
-	// 	debug!("Fetched indirect zero page, x: {:#X}", res);
-	// 	res
-	// }
-
-	// /// This is NOT like indirect_zero_page_x . Explanation video: https://youtu.be/fWqBmmPQP40?t=751
-	// /// Notice we add Y register AFTER and not before calculating indexed address
-	// fn fetch_indirect_zero_page_y(&self) -> u8 {
-	// 	let addr = self.read_instruction_zero_page_address();
-	// 	let indexed_addr = self.read_ram_address(addr as u16) + self.registers.Y as u16;
-	// 	let res = self.bus.memory.read(indexed_addr);
-	// 	debug!("Fetched indirect zero page, y: {:#X}", res);
-	// 	res
-	// }
 
 	fn fetch_accumulator(&self) -> u8 {
 		let res = self.registers.A;
