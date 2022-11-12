@@ -1,4 +1,4 @@
-use super::register::Registers;
+use super::registers::Registers;
 
 pub struct PPU {
     pub registers: Registers
