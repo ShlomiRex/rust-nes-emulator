@@ -116,3 +116,20 @@ pub fn load_program_zeropage_x(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a2 fe 86 0a a5 0a a2 ff a9 00 b5 0b a2 0b 75 ff ea");
 	9
 }
+
+pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$0A 		; A=0x0A
+	STA $ABCD		; $0xABCD = 0x0A
+	LDX #$0D		; X=0x0D
+	LDY $ABC0,X 	; Y = $(0xABC0 + 0x0D = 0xABCD) = 0x0A
+
+	LDA #$00 		; A=0x00
+	LDY #$FF 		; Y=0xFF
+	LDA $AACE,Y 	; A = $(0xAACE + 0xFF = 0xABCD) = 0x0A
+
+	NOP
+	*/
+	write_rom(rom, "a9 0a 8d cd ab a2 0d bc c0 ab a9 00 a0 ff b9 ce aa ea");
+	8
+}

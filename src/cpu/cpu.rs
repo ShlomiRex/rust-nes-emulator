@@ -430,6 +430,8 @@ impl CPU {
 			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
 			AddressingMode::ZEROPAGEX => 		self.fetch_indexed_zero_page(self.registers.X),
 			AddressingMode::ZEROPAGEY => 		self.fetch_indexed_zero_page(self.registers.Y),
+			AddressingMode::ABSOLUTEX => 		self.fetch_absolute_x(),
+			AddressingMode::ABSOLUTEY => 		self.fetch_absolute_y(),
 			_ => {
 				error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
 				panic!();
@@ -457,8 +459,6 @@ impl CPU {
 
 #[cfg(test)]
 mod tests {
-    use simple_logger::SimpleLogger;
-
     use crate::{bus::Bus, program_loader::*, memory::ROM, cpu::registers::ProcessorStatusRegisterBits};
 
     use super::CPU;
@@ -619,8 +619,6 @@ mod tests {
 
 	#[test]
 	fn test_zeropage_x() {
-		SimpleLogger::new().init().unwrap();
-
 		let mut cpu = initialize(load_program_zeropage_x);
 
 		cpu.clock_tick();
@@ -641,6 +639,32 @@ mod tests {
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
 
 		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_absolute_indexed() {
+		let mut cpu = initialize(load_program_absolute_indexed);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0xABCD), 0x0A);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.Y, 0x0A);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x0A);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_relative() {
+		let mut cpu = initialize();
+
+		
 	}
 
 }
