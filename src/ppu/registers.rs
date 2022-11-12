@@ -4,7 +4,7 @@ use super::ppustatus::PPUStatus;
 
 
 pub struct Registers {
-    pub ppuctrl: PPUCtrl,        /* 0x2000 */
+    pub ppuctrl: PPUCtrl,       /* 0x2000 */
     pub ppumask: PPUMask,       /* 0x2001 */
     pub ppustatus: PPUStatus,   /* 0x2002 */
 }
