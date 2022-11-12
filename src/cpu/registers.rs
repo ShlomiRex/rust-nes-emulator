@@ -88,6 +88,16 @@ impl ProcessorStatusRegister {
 		let index = bit.value();
 		self.flags & (1 << index) != 0
 	}
+
+	pub fn modify_n(&mut self, value: u8) {
+		// If last bit (7) is 1, its negative
+		self.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
+	}
+
+	pub fn modify_z(&mut self, value: u8) {
+		// If value is 0, zero flag is 1
+		self.set(ProcessorStatusRegisterBits::ZERO, value == 0); 
+	}
 }
 
 impl fmt::Display for ProcessorStatusRegister {

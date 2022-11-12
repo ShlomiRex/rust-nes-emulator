@@ -51,8 +51,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.X = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::LDY => {
 				// Load Index Y with Memory
@@ -60,8 +60,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.Y = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
@@ -69,8 +69,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.A = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::PHA => {
 				// Push Accumulator on Stack
@@ -86,8 +86,8 @@ impl CPU {
 				let fetched_memory = self.pop_stack();
 				self.registers.A = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::SEC => {
 				// Set Carry Flag
@@ -157,10 +157,10 @@ impl CPU {
 					(is_a_negative 				&& is_m_negative 			&& is_result_negative == false 	) ||
 					(is_a_negative == false 	&& is_m_negative == false 	&& is_result_negative 			);
 				
-				self.modify_p_n(self.registers.A);
-				self.modify_p_z(self.registers.A);
-				self.modify_p_c(new_carry);
-				self.modify_p_v(new_overflow);
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, new_overflow);
 			}
 			Instructions::STX => {
 				// Store Index X in Memory
@@ -184,15 +184,15 @@ impl CPU {
 				// Increment Index X by One
 				// X + 1 -> X
 				self.registers.X = self.registers.X.wrapping_add(1);
-				self.modify_p_n(self.registers.X);
-				self.modify_p_z(self.registers.X);
+				self.registers.P.modify_n(self.registers.X);
+				self.registers.P.modify_z(self.registers.X);
 			}
 			Instructions::INY => {
 				// Increment Index Y by One
 				// Y + 1 -> Y
 				self.registers.Y = self.registers.Y.wrapping_add(1);
-				self.modify_p_n(self.registers.Y);
-				self.modify_p_z(self.registers.Y);
+				self.registers.P.modify_n(self.registers.Y);
+				self.registers.P.modify_z(self.registers.Y);
 			}
 			Instructions::INC => {
 				// Increment Memory by One
@@ -203,8 +203,8 @@ impl CPU {
 				let addr = self.read_instruction_address(addrmode);
 				self.bus.memory.write(addr, new_memory);
 
-				self.modify_p_n(new_memory);
-				self.modify_p_z(new_memory);
+				self.registers.P.modify_n(new_memory);
+				self.registers.P.modify_z(new_memory);
 			}
 			Instructions::RTI => {
 				// Return from Interrupt
@@ -360,32 +360,12 @@ impl CPU {
 		res
 	}
 
-	fn modify_p_n(&mut self, value: u8) {
-		// If last bit (7) is 1, its negative
-		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
-	}
-
-	fn modify_p_z(&mut self, value: u8) {
-		// If value is 0, zero flag is 1
-		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, value == 0); 
-	}
-
-	fn modify_p_c(&mut self, carry: bool) {
-		// If carry detected, set carry flag to 1
-		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, carry);
-	}
-
 	fn modify_p_set(&mut self, bit: ProcessorStatusRegisterBits) {
 		self.registers.P.set(bit, true);
 	}
 
 	fn modify_p_clear(&mut self, bit: ProcessorStatusRegisterBits) {
 		self.registers.P.set(bit, false);
-	}
-
-	fn modify_p_v(&mut self, overflow: bool) {
-		// It's complex, read online, I let the instructions handle the logic
-		self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, overflow);
 	}
 
 	/// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
