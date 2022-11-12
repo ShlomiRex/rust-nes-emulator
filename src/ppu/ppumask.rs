@@ -36,7 +36,7 @@ impl PPUMask {
         self.register & (1 << 6)
     }
 
-    pub fn emphasize_green(&mut self) -> u8 {
+    pub fn emphasize_blue(&mut self) -> u8 {
         self.register & (1 << 7)
     }
 }
