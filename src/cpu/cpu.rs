@@ -51,8 +51,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.X = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::LDY => {
 				// Load Index Y with Memory
@@ -60,8 +60,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.Y = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::LDA => {
 				// Load Accumulator with Memory
@@ -69,8 +69,8 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.A = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::PHA => {
 				// Push Accumulator on Stack
@@ -86,36 +86,36 @@ impl CPU {
 				let fetched_memory = self.pop_stack();
 				self.registers.A = fetched_memory;
 
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
+				self.registers.P.modify_n(fetched_memory);
+				self.registers.P.modify_z(fetched_memory);
 			}
 			Instructions::SEC => {
 				// Set Carry Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::CARRY);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, true);
 			}
 			Instructions::CLC => {
 				// Clear Carry Flag
-				self.modify_p_clear(ProcessorStatusRegisterBits::CARRY);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, false);
 			}
 			Instructions::SED => {
 				// Set Decimal Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::DECIMAL);
+				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, true);
 			}
 			Instructions::CLD => {
 				// Clear Decimal Mode
-				self.modify_p_clear(ProcessorStatusRegisterBits::DECIMAL);
-			}
-			Instructions::CLI => {
-				// Clear Interrupt Disable Bit
-				self.modify_p_clear(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
+				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, false);
 			}
 			Instructions::SEI => {
 				// Set Interrupt Disable Status
-				self.modify_p_set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
+				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, true);
+			}
+			Instructions::CLI => {
+				// Clear Interrupt Disable Bit
+				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, false);
 			}
 			Instructions::CLV => {
 				// Clear Overflow Flag
-				self.modify_p_clear(ProcessorStatusRegisterBits::OVERFLOW);
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, false);
 			}
 			Instructions::ADC => {
 				// Add Memory to Accumulator with Carry
@@ -157,42 +157,42 @@ impl CPU {
 					(is_a_negative 				&& is_m_negative 			&& is_result_negative == false 	) ||
 					(is_a_negative == false 	&& is_m_negative == false 	&& is_result_negative 			);
 				
-				self.modify_p_n(self.registers.A);
-				self.modify_p_z(self.registers.A);
-				self.modify_p_c(new_carry);
-				self.modify_p_v(new_overflow);
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, new_overflow);
 			}
 			Instructions::STX => {
 				// Store Index X in Memory
 				// X -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.X);
 			}
 			Instructions::STY => {
 				// Store Index Y in Memory
 				// Y -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.Y);
 			}
 			Instructions::STA => {
 				// Store Accumulator in Memory
 				// A -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.A);
 			}
 			Instructions::INX => {
 				// Increment Index X by One
 				// X + 1 -> X
 				self.registers.X = self.registers.X.wrapping_add(1);
-				self.modify_p_n(self.registers.X);
-				self.modify_p_z(self.registers.X);
+				self.registers.P.modify_n(self.registers.X);
+				self.registers.P.modify_z(self.registers.X);
 			}
 			Instructions::INY => {
 				// Increment Index Y by One
 				// Y + 1 -> Y
 				self.registers.Y = self.registers.Y.wrapping_add(1);
-				self.modify_p_n(self.registers.Y);
-				self.modify_p_z(self.registers.Y);
+				self.registers.P.modify_n(self.registers.Y);
+				self.registers.P.modify_z(self.registers.Y);
 			}
 			Instructions::INC => {
 				// Increment Memory by One
@@ -200,22 +200,46 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				let new_memory = fetched_memory.wrapping_add(1);
 
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, new_memory);
 
-				self.modify_p_n(new_memory);
-				self.modify_p_z(new_memory);
-			}
-			Instructions::RTI => {
-				// Return from Interrupt
-				// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
-				// pull SR, pull PC
-				// TODO: Complete
+				self.registers.P.modify_n(new_memory);
+				self.registers.P.modify_z(new_memory);
 			}
 			Instructions::CMP => {
 				// Compare Memory with Accumulator
 				// A - M
-				
+
+				self.exec_cmp(addrmode, self.registers.A);
+			}
+			Instructions::JMP => {
+				// Jump to New Location
+				// (PC+1) -> PCL
+				// (PC+2) -> PCH
+				let addr = self.fetch_instruction_address(addrmode);
+				self.registers.PC = addr;
+			}
+			Instructions::CPX => {
+				// Compare Memory and Index X
+				// X - M
+
+				self.exec_cmp(addrmode, self.registers.X);
+			}
+			Instructions::CPY => {
+				// Compare Memory and Index Y
+				// Y - M
+
+				self.exec_cmp(addrmode, self.registers.Y);
+			}
+			Instructions::BIT => {
+				// Test Bits in Memory with Accumulator
+
+				// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+				// the zero-flag is set to the result of operand AND accumulator.
+
+				// A AND M, M7 -> N, M6 -> V
+
+				todo!();
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -226,7 +250,10 @@ impl CPU {
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
 		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
-		self.registers.PC += bytes as u16;
+		// We also don't want to change PC if the instruction changes the PC.
+		if instr != Instructions::JMP {
+			self.registers.PC += bytes as u16;
+		}
 
 		self.cycles += cycles as u64;
 
@@ -248,80 +275,20 @@ impl CPU {
 		}
 	}
 
-	/// Read immediate from ROM, not from memory!
-	fn fetch_immediate(&self) -> u8 {
-		let res = self.bus.rom.read(self.registers.PC + 1);
-		debug!("Fetched immediate: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute(&self) -> u8 {
-		let abs_addr = self.read_instruction_absolute_address();
-		let res = self.bus.memory.read(abs_addr);
-		debug!("Fetched absolute: {:#X}", res);
-		res
-	}
-
-	fn fetch_zero_page(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address();
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched from zero page: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute_x(&self) -> u8 {
-		let addr = self.read_instruction_absolute_address() + self.registers.X as u16;
-		let res = self.bus.memory.read(addr);
-		debug!("Fetched absolute,X: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute_y(&self) -> u8 {
-		let addr = self.read_instruction_absolute_address() + self.registers.Y as u16;
-		let res = self.bus.memory.read(addr);
-		debug!("Fetched absolute,Y: {:#X}", res);
-		res
-	}
-
-	fn fetch_indexed_zero_page(&self, index: u8) -> u8 {
-		let instr_addr = self.read_instruction_zero_page_address();
-		let addr = instr_addr.wrapping_add(index);
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched indexed zero page: {:#X}", res);
-		res
-	}
-
-	fn fetch_accumulator(&self) -> u8 {
-		let res = self.registers.A;
-		debug!("Fetched accumulator: {}", res);
-		res
-	}
-
-	/// Relative addressing is PC + offset.
-	/// The offset is the next byte after opcode.
-	/// So we fetch the next byte (after opcode) and add it with PC.
-	/// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
-	fn fetch_relative(&self) -> u16 {
-		let pc = self.registers.PC;
-		let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
-		// Here we need a way to add 'u16' type with 'i8' type.
-		// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
-		// Its very complex to do this manually, without this feature. So what the hell.
-		let res = pc.wrapping_add_signed(offset as i16);
-
-		debug!("Fetched relative: {}", res);
-		res
-	}
-
-	fn read_instruction_absolute_address(&self) -> u16 {
-		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
-		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
-		(msb << 8) | lsb
-	}
-
-	fn read_instruction_zero_page_address(&self) -> u8 {
-		self.bus.rom.read(self.registers.PC + 1)
-	}
+	// /// Relative addressing is PC + offset.
+	// /// The offset is the next byte after opcode.
+	// /// So we fetch the next byte (after opcode) and add it with PC.
+	// /// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
+	// fn fetch_relative(&self) -> u16 {
+	// 	let pc = self.registers.PC;
+	// 	let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
+	// 	// Here we need a way to add 'u16' type with 'i8' type.
+	// 	// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
+	// 	// Its very complex to do this manually, without this feature. So what the hell.
+	// 	let res = pc.wrapping_add_signed(offset as i16);
+	// 	debug!("Fetched relative: {}", res);
+	// 	res
+	// }
 
 	/// $0xFFFA, $0xFFFB
 	// fn nmi_interrupt(&self)
@@ -350,34 +317,6 @@ impl CPU {
 		res
 	}
 
-	fn modify_p_n(&mut self, value: u8) {
-		// If last bit (7) is 1, its negative
-		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
-	}
-
-	fn modify_p_z(&mut self, value: u8) {
-		// If value is 0, zero flag is 1
-		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, value == 0); 
-	}
-
-	fn modify_p_c(&mut self, carry: bool) {
-		// If carry detected, set carry flag to 1
-		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, carry);
-	}
-
-	fn modify_p_set(&mut self, bit: ProcessorStatusRegisterBits) {
-		self.registers.P.set(bit, true);
-	}
-
-	fn modify_p_clear(&mut self, bit: ProcessorStatusRegisterBits) {
-		self.registers.P.set(bit, false);
-	}
-
-	fn modify_p_v(&mut self, overflow: bool) {
-		// It's complex, read online, I let the instructions handle the logic
-		self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, overflow);
-	}
-
 	/// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
 	fn decimal_mode(&self, data: u8) -> u8 {
 		let hex_str = data.to_string();
@@ -385,20 +324,66 @@ impl CPU {
 		decoded[0]
 	}
 
-	/// Read memory. This can be in ROM (immediate, for example) or in RAM.
+	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
+		let addr = self.read_instruction_absolute_address() + index as u16;
+		self.bus.memory.read(addr)
+	}
+
+	fn fetch_zero_page_indexed(&self, index: u8) -> u8 {
+		let instr_addr = self.read_instruction_zero_page_address();
+		let addr = instr_addr.wrapping_add(index);
+		self.bus.memory.read(addr as u16)
+	}
+
+	/// Read memory. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
+	/// All load instructions use this.
 	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
-			//AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
-			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
-			// AddressingMode::RELATIVE => self.fetch_relative(),
-			AddressingMode::IMMEDIATE => 		self.fetch_immediate(),
-			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
-			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
-			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
-			AddressingMode::ZEROPAGEX => 		self.fetch_indexed_zero_page(self.registers.X),
-			AddressingMode::ZEROPAGEY => 		self.fetch_indexed_zero_page(self.registers.Y),
-			AddressingMode::ABSOLUTEX => 		self.fetch_absolute_x(),
-			AddressingMode::ABSOLUTEY => 		self.fetch_absolute_y(),
+			AddressingMode::IMPLIED => {
+				panic!("Instruction with implied addressing mode should never ask to fetch memory.");
+			}
+			AddressingMode::IMMEDIATE => {
+				let addr = self.registers.PC + 1;
+				let res = self.bus.rom.read(addr);
+				debug!("Fetched immediate: {:#X}", res);
+				res
+			}
+			AddressingMode::ACCUMULATOR => {
+				let res = self.registers.A;
+				debug!("Fetched accumulator: {}", res);
+				res
+			},
+			AddressingMode::ZEROPAGE => {
+				let addr = self.read_instruction_zero_page_address();
+				let res = self.bus.memory.read(addr as u16);
+				debug!("Fetched from zero page: {:#X}", res);
+				res
+			},
+			AddressingMode::ZEROPAGEX => {
+				let res = self.fetch_zero_page_indexed(self.registers.X);
+				debug!("Fetched zeropage,x: {:#X}", res);
+				res
+			}
+			AddressingMode::ZEROPAGEY => {
+				let res = self.fetch_zero_page_indexed(self.registers.Y);
+				debug!("Fetched zeropage,y: {:#X}", res);
+				res
+			},
+			AddressingMode::ABSOLUTE => {
+				let res = self.fetch_absolute_indexed(0);
+				debug!("Fetched absolute: {:#X}", res);
+				res
+			},
+			AddressingMode::ABSOLUTEX => {
+				let res = self.fetch_absolute_indexed(self.registers.X);
+				debug!("Fetched absolute,X: {:#X}", res);
+				res
+			}
+			AddressingMode::ABSOLUTEY => {
+				let res = self.fetch_absolute_indexed(self.registers.Y);
+				debug!("Fetched absolute,Y: {:#X}", res);
+				res
+			}
 			_ => {
 				error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
 				panic!();
@@ -406,20 +391,72 @@ impl CPU {
 		}
 	}
 
-	/// Extract the address from instruction
-	fn read_instruction_address(&self, addrmode: AddressingMode) -> u16 {
+	/// Extract the address from instruction. This function will access ROM and RAM, aswell as indirect addressing.
+	/// All store instructions use this.
+	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
-			AddressingMode::IMMEDIATE => self.read_instruction_immediate_address(),
-			AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
-			AddressingMode::ZEROPAGE => self.read_instruction_zero_page_address() as u16,
+			AddressingMode::IMMEDIATE => {
+				let res = self.bus.rom.read(self.registers.PC + 1) as u16;
+				debug!("Fetched immediate address: {:#X}", res);
+				res
+			}
+			AddressingMode::ABSOLUTE => 	self.read_instruction_absolute_address(),
+			AddressingMode::ZEROPAGE => 	self.read_instruction_zero_page_address() as u16,
+			AddressingMode::INDIRECT => 	self.read_instruction_indirect_address(),
 			_ => todo!()
 		}
 	}
 
-	fn read_instruction_immediate_address(&self) -> u16 {
-		let res = self.bus.rom.read(self.registers.PC + 1) as u16;
-		debug!("Fetched immediate address: {:#X}", res);
-		res
+	/// Reads address stored in ROM at the current PC.
+	fn read_instruction_absolute_address(&self) -> u16 {
+		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
+		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
+		(msb << 8) | lsb
+	}
+
+	/// Reads zero-page address stored in ROM at the current PC.
+	fn read_instruction_zero_page_address(&self) -> u8 {
+		self.bus.rom.read(self.registers.PC + 1)
+	}
+
+	/// Returns address stored in memory, from the absolute address in ROM, at the current PC.
+	fn read_instruction_indirect_address(&self) -> u16 {
+		let indirect_addr = self.read_instruction_absolute_address();
+		let lsb = self.bus.memory.read(indirect_addr) as u16;
+		let msb = self.bus.memory.read(indirect_addr + 1) as u16;
+		(msb << 8) | lsb
+	}
+
+	/// Execute cmp instruction.
+	/// Possible instructions: CMP (A register), CPX (X register), CPY (Y register).
+	fn exec_cmp(&mut self, addrmode: AddressingMode, register: u8) {
+		/*
+		Link: http://www.6502.org/tutorials/compare_instructions.html
+		Compare Results | N | Z | C
+		---------------------------
+		A, X, or Y < M  | * | 0 | 0
+		A, X, or Y = M  | 0 | 1 | 1
+		A, X, or Y > M  | * | 0 | 1
+
+		*The N flag will be bit 7 of A, X, or Y - Memory
+		*/
+		let fetched_memory = self.fetch_memory(&addrmode);
+				
+		let sub = register.wrapping_sub(fetched_memory);
+		let last_bit = (sub >> 7) == 1;
+
+		let (new_n, new_z, new_c) = 
+			if register < fetched_memory {
+				(last_bit, false, false)
+			} else if register == fetched_memory {
+				(false, true, true)
+			} else {
+				(last_bit, false, true)
+			};
+
+		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, new_n);
+		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, new_z);
+		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
 	}
 
 }
@@ -443,7 +480,7 @@ mod tests {
 		cpu
 	}
 
-	// NOTE: For each program, the last cpu tick is NOP
+	// NOTE: For each program, the last cpu tick is NOP, except for branch instructions, the last instruction in those is the stored instruction in memory.
 
 	#[test]
 	fn stack_test() {
@@ -623,6 +660,106 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x0A);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_jmp_absolute() {
+		let mut cpu = initialize(load_program_jmp_absolute);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
+
+		assert_ne!(cpu.registers.PC, 0x0001);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.PC, 0x0001);  // PC is at 0x0001
+
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		// Execute instruction stored in 0x0001
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
+	}
+
+	#[test]
+	fn test_jmp_indirect() {
+		let mut cpu = initialize(load_program_jmp_indirect);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x00AB), 0x05);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x00AC), 0xFF);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.PC, 0xFF05);
+	}
+
+	#[test]
+	fn test_cmp() {
+		let mut cpu = initialize(load_program_cmp);
+
+		cpu.clock_tick();
+		
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+
+		cpu.clock_tick(); // LDA 0xAA: N=1, Z=C=0
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+
+		cpu.clock_tick(); // LDA 0x00
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_cpx() {
+		// cpy is same...
+		let mut cpu = initialize(load_program_cpx);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 
 		cpu.clock_tick();
 	}

@@ -133,3 +133,71 @@ pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a9 0a 8d cd ab a2 0d bc c0 ab a9 00 a0 ff b9 ce aa ea");
 	8
 }
+
+pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
+	// Execute 1 byte long instruction at memory location 0x0001
+
+	/*
+	LDX #$F8 	; We load instruction 0xF8 (SED) to X
+	STX $0001 	; Store instruction in $0001
+
+	JMP 0001 	; Jump to $0001
+	- 			; Execute the instruction in $0001 , DECIMAL bitflag is set. Note: We don't add assembly instruction here, because its out of reach. The PC changed.
+	*/
+	write_rom(rom, "a2 f8 8e 01 00 4c 01 00");
+	4  	// 4 instructions, the last instruction should be executed (0xF8 = SED).
+}
+
+pub fn load_program_jmp_indirect(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+	STA $00AB
+
+	LDA #$FF
+	STA $00AC
+
+	JMP ($00AB)
+	*/
+	write_rom(rom, "a9 05 8d ab 00 a9 ff 8d ac 00 6c ab 00");
+	5
+}
+
+pub fn load_program_cmp(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+
+	CMP #$01 	; Carry is set to 1
+	CMP #$05 	; Zero is set to 1
+	CMP #$06 	; Negative is set to 1, zero and carry are set to 0
+
+	LDA #$AA 	; N=1, Z=C=0
+	CMP #$22 	; C=N=1, Z=0
+
+	LDA #$00 	; N=0, Z=C=1
+	CMP #$FF 	; N=Z=C=0
+
+	NOP
+	*/
+	write_rom(rom, "a9 05 c9 01 c9 05 c9 06 a9 aa c9 22 a9 00 c9 ff ea");
+	9
+}
+
+pub fn load_program_cpx(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+	STA $0A
+
+	LDX #$04 	; N=C=Z=0
+	CPX $0A 	; N=1
+
+	LDX #$FF
+	CPX $0A 	; N=C=1 Z=0
+
+	LDX #$05
+	CPX $0A 	; Z=C=1 N=0
+
+	NOP
+	*/
+	write_rom(rom, "a9 05 85 0a a2 04 e4 0a a2 ff e4 0a a2 05 e4 0a ea");
+	9
+}
