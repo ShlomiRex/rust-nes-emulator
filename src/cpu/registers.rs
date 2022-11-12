@@ -1,4 +1,5 @@
 use std::fmt;
+use ProcessorStatusRegisterBits::*;
 
 /// # CPU Registers
 /// (Chip: 6502), wikipedia: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
@@ -45,9 +46,7 @@ pub enum ProcessorStatusRegisterBits {
 	NEGATIVE
 }
 
-use ProcessorStatusRegisterBits::*;
-// TODO: Its possible this will slow down the CPU, because its called almost each cycle.
-// Maybe I can give the enum a constant value, so I don't need to ask if-questions. But for now I don't care about that.
+// TODO: Maybe I can give the enum a constant value, so I don't need to ask if-questions. But for now I don't care about that.
 impl ProcessorStatusRegisterBits {
 	fn value(&self) -> usize {
 		match *self {
@@ -89,11 +88,13 @@ impl ProcessorStatusRegister {
 		self.flags & (1 << index) != 0
 	}
 
+	/// Sets the N bitflag, depending on arithmetic result. Its common for all the instructions.
 	pub fn modify_n(&mut self, value: u8) {
 		// If last bit (7) is 1, its negative
 		self.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
 	}
 
+	/// Sets the Z bitflag, depending on arithmetic result. Its common for all the instructions.
 	pub fn modify_z(&mut self, value: u8) {
 		// If value is 0, zero flag is 1
 		self.set(ProcessorStatusRegisterBits::ZERO, value == 0); 

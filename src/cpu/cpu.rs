@@ -215,7 +215,34 @@ impl CPU {
 			Instructions::CMP => {
 				// Compare Memory with Accumulator
 				// A - M
-				todo!();
+
+				/*
+				Link: http://www.6502.org/tutorials/compare_instructions.html
+				Compare Results | N | Z | C
+				---------------------------
+				A, X, or Y < M  | * | 0 | 0
+				A, X, or Y = M  | 0 | 1 | 1
+				A, X, or Y > M  | * | 0 | 1
+
+				*The N flag will be bit 7 of A, X, or Y - Memory
+				*/
+				
+				let fetched_memory = self.fetch_memory(&addrmode);
+				
+				let sub = self.registers.A.wrapping_sub(fetched_memory);
+				let last_bit = (sub >> 7) == 1;
+
+				let (new_n, new_z, new_c) = if self.registers.A < fetched_memory {
+					(last_bit, false, false)
+				} else if self.registers.A == fetched_memory {
+					(false, true, true)
+				} else {
+					(last_bit, false, true)
+				};
+
+				self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, new_n);
+				self.registers.P.set(ProcessorStatusRegisterBits::ZERO, new_z);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
 			}
 			Instructions::JMP => {
 				// Jump to New Location
@@ -309,16 +336,13 @@ impl CPU {
 
 	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
 		let addr = self.read_instruction_absolute_address() + index as u16;
-		let res = self.bus.memory.read(addr);
-		res
+		self.bus.memory.read(addr)
 	}
 
 	fn fetch_zero_page_indexed(&self, index: u8) -> u8 {
 		let instr_addr = self.read_instruction_zero_page_address();
 		let addr = instr_addr.wrapping_add(index);
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched indexed zero page: {:#X}", res);
-		res
+		self.bus.memory.read(addr as u16)
 	}
 
 	/// Read memory. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
@@ -377,7 +401,7 @@ impl CPU {
 		}
 	}
 
-	/// Extract the address from instruction. This function will handle indirect addresses aswell.
+	/// Extract the address from instruction. This function will access ROM and RAM, aswell as indirect addressing.
 	/// All store instructions use this.
 	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
@@ -434,7 +458,7 @@ mod tests {
 		cpu
 	}
 
-	// NOTE: For each program, the last cpu tick is NOP
+	// NOTE: For each program, the last cpu tick is NOP, except for branch instructions, the last instruction in those is the stored instruction in memory.
 
 	#[test]
 	fn stack_test() {
@@ -650,6 +674,40 @@ mod tests {
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.PC, 0xFF05);
+	}
+
+	#[test]
+	fn test_cmp() {
+		let mut cpu = initialize(load_program_cmp);
+
+		cpu.clock_tick();
+		
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+
+		cpu.clock_tick(); // LDA 0xAA: N=1, Z=C=0
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+
+		cpu.clock_tick(); // LDA 0x00
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+
+		cpu.clock_tick();
 	}
 
 }

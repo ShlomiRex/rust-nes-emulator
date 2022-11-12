@@ -142,7 +142,7 @@ pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
 	STX $0001 	; Store instruction in $0001
 
 	JMP 0001 	; Jump to $0001
-	- 			; Execute the instruction in $0001 , DECIMAL bitflag is set. Note: We don't add assembly instruction here, because its out of reach.
+	- 			; Execute the instruction in $0001 , DECIMAL bitflag is set. Note: We don't add assembly instruction here, because its out of reach. The PC changed.
 	*/
 	write_rom(rom, "a2 f8 8e 01 00 4c 01 00");
 	4  	// 4 instructions, the last instruction should be executed (0xF8 = SED).
@@ -161,3 +161,25 @@ pub fn load_program_jmp_indirect(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a9 05 8d ab 00 a9 ff 8d ac 00 6c ab 00");
 	5
 }
+
+pub fn load_program_cmp(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+
+	CMP #$01 	; Carry is set to 1
+	CMP #$05 	; Zero is set to 1
+	CMP #$06 	; Negative is set to 1, zero and carry are set to 0
+
+	LDA #$AA 	; N=1, Z=C=0
+	CMP #$22 	; C=N=1, Z=0
+
+	LDA #$00 	; N=0, Z=C=1
+	CMP #$FF 	; N=Z=C=0
+
+	NOP
+	*/
+	write_rom(rom, "a9 05 c9 01 c9 05 c9 06 a9 aa c9 22 a9 00 c9 ff ea");
+	9
+}
+
+
