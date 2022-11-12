@@ -2,7 +2,7 @@ use core::panic;
 use log::{debug, error, warn};
 
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
-use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode, ProcessorStatusRegisterBitChanges};
+use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::bus::Bus;
 
 use hex::FromHex;
@@ -51,12 +51,22 @@ impl CPU {
 		let bytes = instruction.2;
 		let cycles = instruction.3;
 		let oops_cycle = instruction.4;
-		let p_bits_change = instruction.5;
+		// let p_bits_change = instruction.5;
 
-		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle, p_bits_change);
+		//debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle, p_bits_change);
+		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle);
 
 		//The main brains of the CPU. Execute instruction.
 		match instr {
+			Instructions::LDX => {
+				// Load Index X with Memory
+				// M -> X
+				let fetched_memory = self.fetch_memory(&addrmode);
+				self.registers.X = fetched_memory;
+
+				self.modify_p_n(fetched_memory);
+				self.modify_p_z(fetched_memory);
+			}
 			Instructions::LDY => {
 				// Load Index Y with Memory
 				// M -> Y
@@ -164,16 +174,6 @@ impl CPU {
 				self.modify_p_z(self.registers.A);
 				self.modify_p_c(new_carry);
 				self.modify_p_v(new_overflow);
-			}
-			Instructions::LDX => {
-				// Load Index X with Memory
-				// M -> X
-				let fetched_memory = self.fetch_memory(&addrmode);
-
-				self.registers.X = fetched_memory;
-
-				self.modify_p_n(fetched_memory);
-				self.modify_p_z(fetched_memory);
 			}
 			Instructions::STX => {
 				// Store Index X in Memory
@@ -296,22 +296,11 @@ impl CPU {
 		res
 	}
 
-	fn fetch_zero_page_x(&self) -> u8 {
-		// Zero page with index X can wrap (overflow) on u8. NOTE: Zero page is always u8, 1 byte. NOT 2 bytes.
-		// Example: instr_addr=0x0B, X=0xFF, results in overflow, and we get 0x0A.
-		// After this calculation we can convert the zeropage address to absolute address (2 bytes).
+	fn fetch_indexed_zero_page(&self, index: u8) -> u8 {
 		let instr_addr = self.read_instruction_zero_page_address();
-		let addr = instr_addr.wrapping_add(self.registers.X);
+		let addr = instr_addr.wrapping_add(index);
 		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched zero page, x: {:#X}", res);
-		res
-	}
-
-	fn fetch_zero_page_y(&self) -> u8 {
-		let instr_addr = self.read_instruction_zero_page_address();
-		let addr = instr_addr.wrapping_add(self.registers.Y);
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched zero page, x: {:#X}", res);
+		debug!("Fetched indexed zero page: {:#X}", res);
 		res
 	}
 
@@ -355,18 +344,6 @@ impl CPU {
 
 		debug!("Fetched relative: {}", res);
 		res
-	}
-
-	fn read_ram_address(&self, addr: u16) -> u16 {
-		let msb = self.bus.memory.read(addr) as u16;
-		let lsb = self.bus.memory.read(addr + 1) as u16;
-		(msb << 8) | lsb
-	}
-
-	fn read_rom_address(&self, addr: u16) -> u16 {
-		let msb = self.bus.rom.read(addr) as u16;
-		let lsb = self.bus.rom.read(addr + 1) as u16;
-		(msb << 8) | lsb
 	}
 
 	fn read_instruction_absolute_address(&self) -> u16 {
@@ -451,8 +428,8 @@ impl CPU {
 			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
 			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
 			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
-			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_x(),
-			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_y(),
+			AddressingMode::ZEROPAGEX => 		self.fetch_indexed_zero_page(self.registers.X),
+			AddressingMode::ZEROPAGEY => 		self.fetch_indexed_zero_page(self.registers.Y),
 			_ => {
 				error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
 				panic!();
