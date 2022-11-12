@@ -7,14 +7,22 @@ mod cpu;
 mod bus;
 mod memory;
 mod program_loader;
+mod ppu;
 
 use bus::Bus;
 use memory::ROM;
 use cpu::cpu::CPU;
 use program_loader::*;
+use ppu::ppu::PPU;
 
 fn main() {
 	SimpleLogger::new().init().unwrap();
+
+	// Test PPU import.
+	{
+		let a = PPU::new();
+		let b = a.registers.ppustatus.register;
+	}
 
 	// Create ROM and load it with simple program.
 	let mut rom_memory: [u8; 65_536] = [0;65_536];

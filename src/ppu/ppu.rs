@@ -6,7 +6,7 @@ pub struct PPU {
 
 impl PPU {
     pub fn new() -> Self {
-        let mut ppu = PPU {
+        let ppu = PPU {
             registers: Registers::new(),
         };
         ppu
