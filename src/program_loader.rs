@@ -133,3 +133,16 @@ pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a9 0a 8d cd ab a2 0d bc c0 ab a9 00 a0 ff b9 ce aa ea");
 	8
 }
+
+pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDX #$F8 	; We load instruction 0xF8 (SED) to X
+	STX $0001 	; Store instruction in $0001
+
+	JMP 0001 	; Jump to $0001
+	- 			; Execute the instruction in $0001 , DECIMAL bitflag is set. Note: We don't add assembly instruction here, because its out of reach.
+	*/
+	write_rom(rom, "a2 f8 8e 01 00 4c 01 00");
+	4  	// 4 instructions, the last instruction should be executed (0xF8 = SED).
+}
+

@@ -210,12 +210,19 @@ impl CPU {
 				// Return from Interrupt
 				// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
 				// pull SR, pull PC
-				// TODO: Complete
+				todo!();
 			}
 			Instructions::CMP => {
 				// Compare Memory with Accumulator
 				// A - M
-				
+				todo!();
+			}
+			Instructions::JMP => {
+				// Jump to New Location
+				// (PC+1) -> PCL
+				// (PC+2) -> PCH
+				let addr = self.read_instruction_address(addrmode);
+				self.registers.PC = addr;
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -226,7 +233,10 @@ impl CPU {
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
 		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
-		self.registers.PC += bytes as u16;
+		// We also don't want to change PC if the instruction changes the PC. We let instruction handle it.
+		if instr != Instructions::JMP {
+			self.registers.PC += bytes as u16;
+		}
 
 		self.cycles += cycles as u64;
 
@@ -627,4 +637,21 @@ mod tests {
 		cpu.clock_tick();
 	}
 
+	#[test]
+	fn test_jmp_absolute() {
+		let mut cpu = initialize(load_program_jmp_absolute);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
+
+		assert_ne!(cpu.registers.PC, 0x0001);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.PC, 0x0001);  // PC is at 0x0001
+
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		// Execute instruction stored in 0x0001
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
+	}
 }
