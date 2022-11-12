@@ -3,9 +3,9 @@ use super::ppumask::PPUMask;
 use super::ppustatus::PPUStatus;
 
 pub struct Registers {
-    pub ppuctrl: PPUCtr,
-    pub ppumask: PPUMask,
-    pub ppustatus: PPUStatus,
+    pub ppuctrl: PPUCtr,        /* 0x2000 */
+    pub ppumask: PPUMask,       /* 0x2001 */
+    pub ppustatus: PPUStatus,   /* 0x2002 */
 }
 
 impl Registers {
