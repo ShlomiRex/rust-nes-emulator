@@ -91,31 +91,31 @@ impl CPU {
 			}
 			Instructions::SEC => {
 				// Set Carry Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::CARRY);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, true);
 			}
 			Instructions::CLC => {
 				// Clear Carry Flag
-				self.modify_p_clear(ProcessorStatusRegisterBits::CARRY);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, false);
 			}
 			Instructions::SED => {
 				// Set Decimal Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::DECIMAL);
+				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, true);
 			}
 			Instructions::CLD => {
 				// Clear Decimal Mode
-				self.modify_p_clear(ProcessorStatusRegisterBits::DECIMAL);
-			}
-			Instructions::CLI => {
-				// Clear Interrupt Disable Bit
-				self.modify_p_clear(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
+				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, false);
 			}
 			Instructions::SEI => {
 				// Set Interrupt Disable Status
-				self.modify_p_set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
+				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, true);
+			}
+			Instructions::CLI => {
+				// Clear Interrupt Disable Bit
+				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, false);
 			}
 			Instructions::CLV => {
 				// Clear Overflow Flag
-				self.modify_p_clear(ProcessorStatusRegisterBits::OVERFLOW);
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, false);
 			}
 			Instructions::ADC => {
 				// Add Memory to Accumulator with Carry
@@ -358,14 +358,6 @@ impl CPU {
 		//self.registers.S += 1;
 		debug!("Poped stack: \t{:#X}", res);
 		res
-	}
-
-	fn modify_p_set(&mut self, bit: ProcessorStatusRegisterBits) {
-		self.registers.P.set(bit, true);
-	}
-
-	fn modify_p_clear(&mut self, bit: ProcessorStatusRegisterBits) {
-		self.registers.P.set(bit, false);
 	}
 
 	/// Convert data from hex (example: 0x0B) to another hex (0x11), but is represented in 'decimal hex' form.
