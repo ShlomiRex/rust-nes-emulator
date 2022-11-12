@@ -16,6 +16,7 @@
 
 extern crate hex;
 
+use std::fmt;
 use log::debug;
 
 /// Addressable memory (64kb). Includes zero page, CPU ram, PPU registers, Cartidge memory, basically all available addressable memory.
@@ -27,28 +28,47 @@ pub struct ROM {
 	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
 }
 
+enum MemoryMap {
+	ZEROPAGE, 		// 0x0000 - 0x00FF
+	STACK,			// 0x0100 - 0x01FF
+	MappedIO,		// 0x2000 - 0x6000
+	OTHER,  		// everything else (it will be completed when I understand memory better)
+}
+
+fn get_memory_map(addr: u16) -> MemoryMap {
+	if addr <= 0x00FF {
+		MemoryMap::ZEROPAGE
+	} else if addr >= 0x100 && addr < 0x200 {
+		MemoryMap::STACK
+	} else if addr >= 0x2000 && addr < 0x6000 {
+		MemoryMap::MappedIO
+	} else {
+		MemoryMap::OTHER
+	}
+}
+
 impl MemoryBus {
 	pub fn new() -> Self {
 		MemoryBus { memory: Box::new([0; 65536]) }
 	}
 
 	fn debug_write(&self, addr: u16, data: u8) {
-		if addr <= 0xFF {
-			debug!("Writing to zero page, address: {:#X}, data: {:#X}", addr, data);
-		} else if addr >= 0x100 && addr <= 0x1FF {
-			debug!("Writing to stack, address: {:#X}, data: {:#X}", addr, data);
-		} else {
-			debug!("Writing to higher up, address: {:#X}, data: {:#X}", addr, data);
+		let map = get_memory_map(addr);
+		match map {
+			MemoryMap::ZEROPAGE 		=> debug!("Writing to zero page, 			address: {:#X}, data: {:#X}", addr, data),
+			MemoryMap::STACK 			=> debug!("Writing to stack, 				address: {:#X}, data: {:#X}", addr, data),
+			MemoryMap::MappedIO			=> debug!("Writing to memory mapped i/o, 	address: {:#X}, data: {:#X}", addr, data),
+			MemoryMap::OTHER 			=> debug!("Writing to 						address: {:#X}, data: {:#X}", addr, data)
 		}
 	}
 
 	fn debug_read(&self, addr: u16) {
-		if addr <= 0xFF {
-			debug!("Reading from zero page, address: {:#X}", addr);
-		} else if addr >= 0x100 && addr <= 0x1FF {
-			debug!("Reading from stack, address: {:#X}", addr);
-		} else {
-			debug!("Reading from higher up, address: {:#X}", addr);
+		let map = get_memory_map(addr);
+		match map {
+			MemoryMap::ZEROPAGE 		=> debug!("Reading from zero page, 			address: {:#X}", addr),
+			MemoryMap::STACK 			=> debug!("Reading from stack, 				address: {:#X}", addr),
+			MemoryMap::MappedIO			=> debug!("Reading from memory mapped i/o, 	address: {:#X}", addr),
+			MemoryMap::OTHER 			=> debug!("Reading from						address: {:#X}", addr)
 		}
 	}
 	
