@@ -6,6 +6,16 @@ My goal is to not to look at other's code, but to understand on the high-level t
 
 I intend to use SDL2 for rendering.
 
+# How to get SDL2 working (for developers only)
+
+1. Download SDL2 [here](https://www.libsdl.org/). The file should be called something like: `SDL2-devel-2.24.2-VC.zip`
+
+2. Copy all `.lib` files from: `C:\Users\Shlomi\Downloads\SDL2-devel-2.24.2-VC\SDL2-2.24.2\lib\x64` the zip to rustup toolchain: `C:\Users\Shlomi\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\lib\rustlib\x86_64-pc-windows-msvc\lib`. Notice I'm using nightly rust channel, not stable.
+
+4. Copy the `SDL2.dll` file to this project root (where cargo, readme is).
+
+5. You can now work with SDL2 and rust nightly.
+
 # Note: nightly rust channel
 
 Currently, the CPU is quite complex. It uses binary arithmetic with multiple integer types. Its just a requirement.
