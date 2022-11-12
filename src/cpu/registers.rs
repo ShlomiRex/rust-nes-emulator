@@ -1,21 +1,32 @@
 use std::fmt;
+use crate::model::register::{Register};
+
 
 /// # CPU Registers
 /// (Chip: 6502), wikipedia: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
 #[derive(Default)]
 #[allow(non_snake_case)]
 pub struct Registers {
-	pub A: u8, 							//accumulator
-	pub X: u8, 							//index register
-	pub Y: u8, 							//index register
+	pub A: Register<u8>, 							//accumulator
+	pub X: Register<u8>, 							//index register
+	pub Y: Register<u8>, 							//index register
 	pub P: ProcessorStatusRegister, 	//processor status flag bits
-	pub S: u8, 							//stack pointer
-	pub PC: u16, 						//program counter
+	pub S: Register<u8>, 							//stack pointer
+	pub PC: Register<u16>, 						//program counter
 }
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "A: {:#X},\tX: {:#X},\tY: {:#X},\tS: {:#X},\tPC: {:#X},\tP: {}", self.A, self.X, self.Y, self.S, self.PC, self.P)
+        write!(
+			f,
+			"A: {:#X},\tX: {:#X},\tY: {:#X},\tS: {:#X},\tPC: {:#X},\tP: {}",
+			self.A.data,
+			self.X.data,
+			self.Y.data,
+			self.S.data,
+			self.PC.data,
+			self.P.flags.data
+		)
     }
 }
 
@@ -64,13 +75,13 @@ impl ProcessorStatusRegisterBits {
 }
 
 pub struct ProcessorStatusRegister {
-	flags: u8
+	flags: Register<u8>
 }
 
 impl Default for ProcessorStatusRegister {
     fn default() -> Self {
 		// Set 'UNUSED' flag to 1. Its the standard.
-        Self { flags: 0b0010_0000 }
+        Self { flags: Register { data: 0b0010_0000 as u8} }
     }
 }
 
@@ -78,21 +89,21 @@ impl ProcessorStatusRegister {
 	pub fn set(&mut self, bit: ProcessorStatusRegisterBits, value: bool) {
 		let index = bit.value();
 		if value {
-			self.flags |= 1 << index;
+			self.flags.set(index)
 		} else {
-			self.flags &= !(1 << index);
+			self.flags.unset(index)
 		}
 	}
 
 	pub fn get(&self, bit: ProcessorStatusRegisterBits) -> bool {
 		let index = bit.value();
-		self.flags & (1 << index) != 0
+		!self.flags.is_set(index)
 	}
 }
 
 impl fmt::Display for ProcessorStatusRegister {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NV-BDIZC {:08b}", self.flags)
+        write!(f, "NV-BDIZC {:08b}", self.flags.data)
     }
 }
 
@@ -120,12 +131,12 @@ mod tests {
 	#[test]
 	fn p_register_format_test() {
 		// I had trouble with format. But someone helped me: https://www.reddit.com/r/learnrust/comments/ypyquy/format_u8_to_display_binary_without_0b_and_with/
-		let mut p = ProcessorStatusRegister { flags: 0 };
+		let mut p = ProcessorStatusRegister { flags: Register { data: 0 } };
 
-		p.flags = 0b1100_0110;
+		p.flags = Register{ data: 0b1100_0110 as u8};
 		assert_eq!(format!("{p}"), "NV-BDIZC 11000110");
 
-		p.flags = 0b0000_0010;
+		p.flags = Register{ data: 0b0000_0010 as u8};
 		assert_eq!(format!("{p}"), "NV-BDIZC 00000010");
 	}
 }

@@ -8,6 +8,7 @@ mod bus;
 mod memory;
 mod program_loader;
 mod ppu;
+mod model;
 
 use bus::Bus;
 use memory::ROM;
