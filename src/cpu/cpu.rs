@@ -165,19 +165,19 @@ impl CPU {
 			Instructions::STX => {
 				// Store Index X in Memory
 				// X -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.X);
 			}
 			Instructions::STY => {
 				// Store Index Y in Memory
 				// Y -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.Y);
 			}
 			Instructions::STA => {
 				// Store Accumulator in Memory
 				// A -> M
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.A);
 			}
 			Instructions::INX => {
@@ -200,7 +200,7 @@ impl CPU {
 				let fetched_memory = self.fetch_memory(&addrmode);
 				let new_memory = fetched_memory.wrapping_add(1);
 
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.bus.memory.write(addr, new_memory);
 
 				self.registers.P.modify_n(new_memory);
@@ -221,7 +221,7 @@ impl CPU {
 				// Jump to New Location
 				// (PC+1) -> PCL
 				// (PC+2) -> PCH
-				let addr = self.read_instruction_address(addrmode);
+				let addr = self.fetch_instruction_address(addrmode);
 				self.registers.PC = addr;
 			}
 			_ => {
@@ -272,16 +272,6 @@ impl CPU {
 	// 	debug!("Fetched relative: {}", res);
 	// 	res
 	// }
-
-	fn read_instruction_absolute_address(&self) -> u16 {
-		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
-		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
-		(msb << 8) | lsb
-	}
-
-	fn read_instruction_zero_page_address(&self) -> u8 {
-		self.bus.rom.read(self.registers.PC + 1)
-	}
 
 	/// $0xFFFA, $0xFFFB
 	// fn nmi_interrupt(&self)
@@ -335,11 +325,9 @@ impl CPU {
 	/// All load instructions use this.
 	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
-			AddressingMode::ABSOLUTE => {
-				let res = self.fetch_absolute_indexed(0);
-				debug!("Fetched absolute,X: {:#X}", res);
-				res
-			},
+			AddressingMode::IMPLIED => {
+				panic!("Instruction with implied addressing mode should never ask to fetch memory.");
+			}
 			AddressingMode::IMMEDIATE => {
 				let addr = self.registers.PC + 1;
 				let res = self.bus.rom.read(addr);
@@ -357,8 +345,21 @@ impl CPU {
 				debug!("Fetched from zero page: {:#X}", res);
 				res
 			},
-			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_indexed(self.registers.X),
-			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_indexed(self.registers.Y),
+			AddressingMode::ZEROPAGEX => {
+				let res = self.fetch_zero_page_indexed(self.registers.X);
+				debug!("Fetched zeropage,x: {:#X}", res);
+				res
+			}
+			AddressingMode::ZEROPAGEY => {
+				let res = self.fetch_zero_page_indexed(self.registers.Y);
+				debug!("Fetched zeropage,y: {:#X}", res);
+				res
+			},
+			AddressingMode::ABSOLUTE => {
+				let res = self.fetch_absolute_indexed(0);
+				debug!("Fetched absolute: {:#X}", res);
+				res
+			},
 			AddressingMode::ABSOLUTEX => {
 				let res = self.fetch_absolute_indexed(self.registers.X);
 				debug!("Fetched absolute,X: {:#X}", res);
@@ -376,21 +377,30 @@ impl CPU {
 		}
 	}
 
-	/// Extract the address from instruction
-	fn read_instruction_address(&self, addrmode: AddressingMode) -> u16 {
+	/// Extract the address from instruction. This function will handle indirect addresses aswell.
+	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
-			AddressingMode::IMMEDIATE => 	self.read_instruction_immediate_address(),
+			AddressingMode::IMMEDIATE => {
+				let res = self.bus.rom.read(self.registers.PC + 1) as u16;
+				debug!("Fetched immediate address: {:#X}", res);
+				res
+			}
 			AddressingMode::ABSOLUTE => 	self.read_instruction_absolute_address(),
 			AddressingMode::ZEROPAGE => 	self.read_instruction_zero_page_address() as u16,
 			_ => todo!()
 		}
 	}
 
-	fn read_instruction_immediate_address(&self) -> u16 {
-		let res = self.bus.rom.read(self.registers.PC + 1) as u16;
-		debug!("Fetched immediate address: {:#X}", res);
-		res
+	fn read_instruction_absolute_address(&self) -> u16 {
+		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
+		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
+		(msb << 8) | lsb
 	}
+
+	fn read_instruction_zero_page_address(&self) -> u8 {
+		self.bus.rom.read(self.registers.PC + 1)
+	}
+
 
 }
 
@@ -614,4 +624,21 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
 	}
+
+	// #[test]
+	// fn test_jmp_indirect() {
+	// 	let mut cpu = initialize(load_program_jmp_indirect);
+
+	// 	cpu.clock_tick();
+	// 	cpu.clock_tick();
+	// 	assert_eq!(cpu.bus.memory.read(0x00AB), 0x05);
+
+	// 	cpu.clock_tick();
+	// 	cpu.clock_tick();
+	// 	assert_eq!(cpu.bus.memory.read(0x00AC), 0xFF);
+
+	// 	cpu.clock_tick();
+	// 	assert_eq!(cpu.registers.PC, 0xFF05);
+	// }
+
 }
