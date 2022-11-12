@@ -206,18 +206,41 @@ impl CPU {
 				self.registers.P.modify_n(new_memory);
 				self.registers.P.modify_z(new_memory);
 			}
-			Instructions::CMP => {
-				// Compare Memory with Accumulator
-				// A - M
-
-				self.exec_cmp(addrmode, self.registers.A);
-			}
 			Instructions::JMP => {
 				// Jump to New Location
 				// (PC+1) -> PCL
 				// (PC+2) -> PCH
 				let addr = self.fetch_instruction_address(addrmode);
 				self.registers.PC = addr;
+			}
+			Instructions::JSR => {
+				// Jump to New Location Saving Return Address
+
+				// push (PC+2),
+				// (PC+1) -> PCL
+				// (PC+2) -> PCH
+
+				// What order of bytes to push?
+				// After a lot of googling: https://stackoverflow.com/a/63886154
+				// Basically push the PC like so: "...You need to push the high byte first, and then the low byte."
+
+				// Push PC onto stack (return address)
+				// NOTE: I push the 3rd byte of the instruction (PC + 2). Why not PC+3 (next instruction)?
+				// Idk, but its important to emulate this exactly, because some games use this feature.
+				let pc_msb = (self.registers.PC.wrapping_add(2) >> 8) as u8;
+				let pc_lsb = (self.registers.PC.wrapping_add(2)) as u8;
+				self.push_stack(pc_msb);
+				self.push_stack(pc_lsb);
+
+				// Jump to the address operand
+				let addr = self.fetch_instruction_address(addrmode);
+				self.registers.PC = addr;
+			}
+			Instructions::CMP => {
+				// Compare Memory with Accumulator
+				// A - M
+
+				self.exec_cmp(addrmode, self.registers.A);
 			}
 			Instructions::CPX => {
 				// Compare Memory and Index X
@@ -242,8 +265,7 @@ impl CPU {
 				todo!();
 			}
 			_ => {
-				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
-				panic!();
+				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
 		}
 
@@ -251,8 +273,10 @@ impl CPU {
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
 		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
 		// We also don't want to change PC if the instruction changes the PC.
-		if instr != Instructions::JMP {
-			self.registers.PC += bytes as u16;
+		match instr {
+			Instructions::JMP => (),
+			Instructions::JSR => (),
+			_ => {self.registers.PC += bytes as u16;}
 		}
 
 		self.cycles += cycles as u64;
@@ -762,6 +786,23 @@ mod tests {
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 
 		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_jsr() {
+		let mut cpu = initialize(load_program_jsr);
+
+		let pc_before = cpu.registers.PC;
+
+		assert_ne!(cpu.registers.PC, 0x0A0B);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.PC, 0x0A0B);
+		assert_eq!(cpu.registers.S, 0xFD);
+		let pc_after_lsb = cpu.pop_stack();
+		let pc_after_msb = cpu.pop_stack();
+		let pc_after = ((pc_after_msb as u16) << 8) | (pc_after_lsb as u16);
+		assert_eq!(pc_after, pc_before + 2); 
+		assert_eq!(cpu.registers.S, 0xFF);
 	}
 
 }

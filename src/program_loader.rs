@@ -201,3 +201,12 @@ pub fn load_program_cpx(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a9 05 85 0a a2 04 e4 0a a2 ff e4 0a a2 05 e4 0a ea");
 	9
 }
+
+pub fn load_program_jsr(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	JSR $0A0B  	; We push to stack: PC + 2
+	- 			; Because we jump, we don't want to execute NOP. Because the PC changed.
+	*/
+	write_rom(rom, "20 0b 0a");
+	1
+}
