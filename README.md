@@ -29,3 +29,4 @@ So you must use nightly rust. To do so:
 - Another youtuber reading the architecture: [YouTube](https://www.youtube.com/watch?v=qJgsuQoy9bc)
 - Blog explains 6502 addressing mode: [Emulator101](http://www.emulator101.com/6502-addressing-modes.html#:~:text=The%206502%20has%20the%20ability,to%20the%20address%20being%20accessed.&text=This%20addressing%20mode%20makes%20the,register%20to%20an%20absolute%20address.)
 - Introduction to 6502 assembly: [here](https://famicom.party/book/05-6502assembly/)
+- Basic NES program that actually works: [here](https://famicom.party/book/03-gettingstarted/)
