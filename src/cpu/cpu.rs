@@ -60,7 +60,7 @@ impl CPU {
 			Instructions::LDY => {
 				// Load Index Y with Memory
 				// M -> Y
-				let fetched_memory = self.fetch_memory(addrmode);
+				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.Y = fetched_memory;
 
 				self.modify_p_n(fetched_memory);
@@ -69,7 +69,7 @@ impl CPU {
 			Instructions::LDA => {
 				// Load Accumulator with Memory
 				// M -> A
-				let fetched_memory = self.fetch_memory(addrmode);
+				let fetched_memory = self.fetch_memory(&addrmode);
 				self.registers.A = fetched_memory;
 
 				self.modify_p_n(fetched_memory);
@@ -126,7 +126,7 @@ impl CPU {
 				// NOTE: This is the first instruction that actually does 'complex' arithmetic
 				// After reading a lot of forums, its actually the most complex thing to emulate, I must understand this
 
-				let fetched_memory = self.fetch_memory(addrmode);
+				let fetched_memory = self.fetch_memory(&addrmode);
 
 				let a = self.registers.A;
 				let m = fetched_memory;
@@ -168,7 +168,7 @@ impl CPU {
 			Instructions::LDX => {
 				// Load Index X with Memory
 				// M -> X
-				let fetched_memory = self.fetch_memory(addrmode);
+				let fetched_memory = self.fetch_memory(&addrmode);
 
 				self.registers.X = fetched_memory;
 
@@ -181,22 +181,55 @@ impl CPU {
 				let addr = self.read_instruction_address(addrmode);
 				self.bus.memory.write(addr, self.registers.X);
 			}
-			// Instructions::STA => {
-			// 	// Store Accumulator in Memory
-			// 	// A -> M
-			// 	let addr = match addrmode {
-			// 		AddressingMode::ZEROPAGE => panic!("Not implemented yet"),
-			// 		AddressingMode::ZEROPAGEX => panic!("Not implemented yet"),
-			// 		AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
-			// 		AddressingMode::ABSOLUTEX => panic!("Not implemented yet"),
-			// 		AddressingMode::ABSOLUTEY => panic!("Not implemented yet"),
-			// 		AddressingMode::INDIRECTX
-			// 		AddressingMode::
-			// 		_ => {
-			// 			panic!("Addressing mode: {:?} is illegal for instruction: store index", addrmode);
-			// 		}
-			// 	};
-			// 	self.bus.memory.write(addr, self.registers.A);
+			Instructions::STY => {
+				// Store Index Y in Memory
+				// Y -> M
+				let addr = self.read_instruction_address(addrmode);
+				self.bus.memory.write(addr, self.registers.Y);
+			}
+			Instructions::STA => {
+				// Store Accumulator in Memory
+				// A -> M
+				let addr = self.read_instruction_address(addrmode);
+				self.bus.memory.write(addr, self.registers.A);
+			}
+			Instructions::INX => {
+				// Increment Index X by One
+				// X + 1 -> X
+				self.registers.X = self.registers.X.wrapping_add(1);
+				self.modify_p_n(self.registers.X);
+				self.modify_p_z(self.registers.X);
+			}
+			Instructions::INY => {
+				// Increment Index Y by One
+				// Y + 1 -> Y
+				self.registers.Y = self.registers.Y.wrapping_add(1);
+				self.modify_p_n(self.registers.Y);
+				self.modify_p_z(self.registers.Y);
+			}
+			Instructions::INC => {
+				// Increment Memory by One
+				// M + 1 -> M
+				// TODO: Complete
+				let fetched_memory = self.fetch_memory(&addrmode);
+				let new_memory = fetched_memory.wrapping_add(1);
+
+				let addr = self.read_instruction_address(addrmode);
+				self.bus.memory.write(addr, new_memory);
+
+				self.modify_p_n(new_memory);
+				self.modify_p_z(new_memory);
+			}
+			// Instructions::RTI => {
+			// 	// Return from Interrupt
+			// 	// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
+			// 	// pull SR, pull PC
+			// 	// TODO: Complete
+			// }
+			// Instructions::CMP => {
+			// 	// Compare Memory with Accumulator
+			// 	// A - M
+				
 			// }
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -414,7 +447,7 @@ impl CPU {
 	}
 
 	/// Read memory. This can be in ROM (immediate, for example) or in RAM.
-	fn fetch_memory(&self, addrmode: AddressingMode) -> u8 {
+	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
 			//AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
 			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
@@ -437,6 +470,7 @@ impl CPU {
 		match addrmode {
 			AddressingMode::IMMEDIATE => self.read_instruction_immediate_address(),
 			AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
+			AddressingMode::ZEROPAGE => self.read_instruction_zero_page_address(),
 			_ => todo!()
 		}
 	}
@@ -588,6 +622,44 @@ mod tests {
 		assert_eq!(cpu.bus.memory.read(0x2001), 0);
 		cpu.clock_tick();
 		assert_eq!(cpu.bus.memory.read(0x2001), 0xAB);
+	}
+
+	#[test]
+	fn test_index_increment() {
+		let mut cpu = initialize(load_program_index_increment);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0xFE);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0xFF);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0x00);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_zeropage_store_load_and_memory_increment() {
+		let mut cpu = initialize(load_program_zeropage_store_load_and_memory_increment);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0xFE);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x0A), 0xFE);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x0A), 0xFF);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.bus.memory.read(0x0A), 0x00);
+
+		cpu.clock_tick();
 	}
 
 }

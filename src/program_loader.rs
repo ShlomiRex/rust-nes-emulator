@@ -74,3 +74,26 @@ pub fn load_program_absolute_store(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "78 d8 a2 ab 8e 00 20 8e 01 20 ea");
 	6
 }
+
+pub fn load_program_index_increment(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDX #$FE
+	INX
+	INX
+	NOP
+	*/
+	write_rom(rom, "a2 fe e8 e8 ea");
+	4
+}
+
+pub fn load_program_zeropage_store_load_and_memory_increment(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDX #$FE
+	STX $0A
+	INC $0A
+	INC $0A
+	NOP
+	*/
+	write_rom(rom, "a2 fe 86 0a e6 0a e6 0a ea");
+	5
+}
