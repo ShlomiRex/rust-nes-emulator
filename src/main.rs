@@ -18,7 +18,7 @@ fn main() {
 
 	// Create ROM and load it with simple program.
 	let mut rom_memory: [u8; 65_536] = [0;65_536];
-	let assembly_lines_amount = load_program_adc(&mut rom_memory);
+	let assembly_lines_amount = load_program_absolute_store(&mut rom_memory);
 	let rom: ROM = ROM {
 		rom: Box::new(rom_memory)
 	};

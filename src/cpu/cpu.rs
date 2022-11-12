@@ -55,36 +55,12 @@ impl CPU {
 
 		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}, P modify: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle, p_bits_change);
 
-		fn panic_addressing_mode_unsupported(addrmode: AddressingMode) {
-			error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
-			panic!();
-		}
-
-		// Here we allowed to cast u8 to u16 because its the Address bus. The CPU only supports address bus of 16 signals (bits).
-		let fetched_memory: u8 = match addrmode {
-			AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
-			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
-			// AddressingMode::RELATIVE => self.fetch_relative(),
-			AddressingMode::IMMEDIATE => 		self.fetch_immediate(),
-			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
-			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
-			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
-			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_x(),
-			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_y(),
-			
-			_ => {
-				panic_addressing_mode_unsupported(addrmode);
-				panic!();
-			}
-		};
-
 		//The main brains of the CPU. Execute instruction.
-		//TODO: optimize order of matching
-		//By ordering the most used instructions first, I can optimize this code. But I'm only starting so its not relevant at all.
 		match instr {
 			Instructions::LDY => {
 				// Load Index Y with Memory
 				// M -> Y
+				let fetched_memory = self.fetch_memory(addrmode);
 				self.registers.Y = fetched_memory;
 
 				self.modify_p_n(fetched_memory);
@@ -93,6 +69,7 @@ impl CPU {
 			Instructions::LDA => {
 				// Load Accumulator with Memory
 				// M -> A
+				let fetched_memory = self.fetch_memory(addrmode);
 				self.registers.A = fetched_memory;
 
 				self.modify_p_n(fetched_memory);
@@ -115,9 +92,17 @@ impl CPU {
 				self.modify_p_n(fetched_memory);
 				self.modify_p_z(fetched_memory);
 			}
+			Instructions::SEC => {
+				// Set Carry Flag
+				self.modify_p_set(ProcessorStatusRegisterBits::CARRY);
+			}
 			Instructions::CLC => {
 				// Clear Carry Flag
 				self.modify_p_clear(ProcessorStatusRegisterBits::CARRY);
+			}
+			Instructions::SED => {
+				// Set Decimal Flag
+				self.modify_p_set(ProcessorStatusRegisterBits::DECIMAL);
 			}
 			Instructions::CLD => {
 				// Clear Decimal Mode
@@ -127,23 +112,21 @@ impl CPU {
 				// Clear Interrupt Disable Bit
 				self.modify_p_clear(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
 			}
+			Instructions::SEI => {
+				// Set Interrupt Disable Status
+				self.modify_p_set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE);
+			}
 			Instructions::CLV => {
 				// Clear Overflow Flag
 				self.modify_p_clear(ProcessorStatusRegisterBits::OVERFLOW);
-			}
-			Instructions::SEC => {
-				// Set Carry Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::CARRY);
-			}
-			Instructions::SED => {
-				// Set Decimal Flag
-				self.modify_p_set(ProcessorStatusRegisterBits::DECIMAL);
 			}
 			Instructions::ADC => {
 				// Add Memory to Accumulator with Carry
 				// A + M + C -> A, C
 				// NOTE: This is the first instruction that actually does 'complex' arithmetic
 				// After reading a lot of forums, its actually the most complex thing to emulate, I must understand this
+
+				let fetched_memory = self.fetch_memory(addrmode);
 
 				let a = self.registers.A;
 				let m = fetched_memory;
@@ -182,34 +165,44 @@ impl CPU {
 				self.modify_p_c(new_carry);
 				self.modify_p_v(new_overflow);
 			}
-			Instructions::STA => {
-				// Store Accumulator in Memory
-				// A -> M
+			Instructions::LDX => {
+				// Load Index X with Memory
+				// M -> X
+				let fetched_memory = self.fetch_memory(addrmode);
 
-				//TODO: Complete
+				self.registers.X = fetched_memory;
 
+				self.modify_p_n(fetched_memory);
+				self.modify_p_z(fetched_memory);
 			}
+			Instructions::STX => {
+				// Store Index X in Memory
+				// X -> M
+				let addr = self.read_instruction_address(addrmode);
+				self.bus.memory.write(addr, self.registers.X);
+			}
+			// Instructions::STA => {
+			// 	// Store Accumulator in Memory
+			// 	// A -> M
+			// 	let addr = match addrmode {
+			// 		AddressingMode::ZEROPAGE => panic!("Not implemented yet"),
+			// 		AddressingMode::ZEROPAGEX => panic!("Not implemented yet"),
+			// 		AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
+			// 		AddressingMode::ABSOLUTEX => panic!("Not implemented yet"),
+			// 		AddressingMode::ABSOLUTEY => panic!("Not implemented yet"),
+			// 		AddressingMode::INDIRECTX
+			// 		AddressingMode::
+			// 		_ => {
+			// 			panic!("Addressing mode: {:?} is illegal for instruction: store index", addrmode);
+			// 		}
+			// 	};
+			// 	self.bus.memory.write(addr, self.registers.A);
+			// }
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
 				panic!();
 			}
 		}
-
-		/*
-		http://www.6502.org/tutorials/vflag.html
-		When the addition result is 0 to 255, the carry is cleared.
-		When the addition result is greater than 255, the carry is set.
-		When the subtraction result is 0 to 255, the carry is set.
-		When the subtraction result is less than 0, the carry is cleared.
-		*/
-
-		// Modify P register.
-		// self.modify_p(ProcessorStatusRegisterBits::NEGATIVE, 			p_bits_change.n, fetched_memory);
-		// self.modify_p(ProcessorStatusRegisterBits::ZERO, 				p_bits_change.z, fetched_memory);
-		// self.modify_p(ProcessorStatusRegisterBits::CARRY, 				p_bits_change.c, fetched_memory);
-		// self.modify_p(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, 	p_bits_change.i, fetched_memory);
-		// self.modify_p(ProcessorStatusRegisterBits::DECIMAL, 			p_bits_change.d, fetched_memory);
-		// self.modify_p(ProcessorStatusRegisterBits::OVERFLOW, 			p_bits_change.v, fetched_memory);
 
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
@@ -238,6 +231,7 @@ impl CPU {
 
 	//TODO: Optimize all fetch functions as inline?
 
+	/// Read immediate from ROM, not from memory!
 	fn fetch_immediate(&self) -> u8 {
 		let res = self.bus.rom.read(self.registers.PC + 1);
 		debug!("Fetched immediate: {:#X}", res);
@@ -340,8 +334,8 @@ impl CPU {
 	}
 
 	fn read_instruction_absolute_address(&self) -> u16 {
-		let msb = self.bus.rom.read(self.registers.PC +1) as u16;
-		let lsb = self.bus.rom.read(self.registers.PC +2) as u16;
+		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
+		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
 		(msb << 8) | lsb
 	}
 
@@ -384,7 +378,7 @@ impl CPU {
 		res
 	}
 
-	fn  modify_p_n(&mut self, value: u8) {
+	fn modify_p_n(&mut self, value: u8) {
 		// If last bit (7) is 1, its negative
 		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
 	}
@@ -417,6 +411,40 @@ impl CPU {
 		let hex_str = data.to_string();
 		let decoded = <[u8; 1]>::from_hex(hex_str).expect("Could not convert decimal");
 		decoded[0]
+	}
+
+	/// Read memory. This can be in ROM (immediate, for example) or in RAM.
+	fn fetch_memory(&self, addrmode: AddressingMode) -> u8 {
+		match addrmode {
+			//AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
+			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
+			// AddressingMode::RELATIVE => self.fetch_relative(),
+			AddressingMode::IMMEDIATE => 		self.fetch_immediate(),
+			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
+			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
+			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
+			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_x(),
+			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_y(),
+			_ => {
+				error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
+				panic!();
+			}
+		}
+	}
+
+	/// Extract the address from instruction
+	fn read_instruction_address(&self, addrmode: AddressingMode) -> u16 {
+		match addrmode {
+			AddressingMode::IMMEDIATE => self.read_instruction_immediate_address(),
+			AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
+			_ => todo!()
+		}
+	}
+
+	fn read_instruction_immediate_address(&self) -> u16 {
+		let res = self.bus.rom.read(self.registers.PC + 1) as u16;
+		debug!("Fetched immediate address: {:#X}", res);
+		res
 	}
 
 	// fn arithmetic_add_2(&mut self, a: u8, b: u8) -> (u8, bool) {
@@ -544,4 +572,22 @@ mod tests {
 
 		cpu.clock_tick();
 	}
+
+	#[test]
+	fn test_absolute_store() {
+		let mut cpu = initialize(load_program_absolute_store);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+
+		assert_eq!(cpu.bus.memory.read(0x2000), 0);
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x2000), 0xAB);
+
+		assert_eq!(cpu.bus.memory.read(0x2001), 0);
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x2001), 0xAB);
+	}
+
 }

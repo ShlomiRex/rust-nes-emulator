@@ -61,3 +61,16 @@ pub fn load_program_adc(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "d8 a9 09 18 69 02 f8 a9 09 18 69 02 d8 a9 ff 69 81 18 a9 80 69 ff b8 18 a9 7f 69 01 ea");
 	19
 }
+
+pub fn load_program_absolute_store(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	SEI
+	CLD
+	LDX #$AB
+	STX $2000
+	STX $2001
+	NOP
+	*/
+	write_rom(rom, "78 d8 a2 ab 8e 00 20 8e 01 20 ea");
+	6
+}
