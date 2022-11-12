@@ -233,7 +233,7 @@ impl CPU {
 		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
 		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
 		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
-		// We also don't want to change PC if the instruction changes the PC. We let instruction handle it.
+		// We also don't want to change PC if the instruction changes the PC.
 		if instr != Instructions::JMP {
 			self.registers.PC += bytes as u16;
 		}
@@ -258,70 +258,20 @@ impl CPU {
 		}
 	}
 
-	/// Read immediate from ROM, not from memory!
-	fn fetch_immediate(&self) -> u8 {
-		let res = self.bus.rom.read(self.registers.PC + 1);
-		debug!("Fetched immediate: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute(&self) -> u8 {
-		let abs_addr = self.read_instruction_absolute_address();
-		let res = self.bus.memory.read(abs_addr);
-		debug!("Fetched absolute: {:#X}", res);
-		res
-	}
-
-	fn fetch_zero_page(&self) -> u8 {
-		let addr = self.read_instruction_zero_page_address();
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched from zero page: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute_x(&self) -> u8 {
-		let addr = self.read_instruction_absolute_address() + self.registers.X as u16;
-		let res = self.bus.memory.read(addr);
-		debug!("Fetched absolute,X: {:#X}", res);
-		res
-	}
-
-	fn fetch_absolute_y(&self) -> u8 {
-		let addr = self.read_instruction_absolute_address() + self.registers.Y as u16;
-		let res = self.bus.memory.read(addr);
-		debug!("Fetched absolute,Y: {:#X}", res);
-		res
-	}
-
-	fn fetch_indexed_zero_page(&self, index: u8) -> u8 {
-		let instr_addr = self.read_instruction_zero_page_address();
-		let addr = instr_addr.wrapping_add(index);
-		let res = self.bus.memory.read(addr as u16);
-		debug!("Fetched indexed zero page: {:#X}", res);
-		res
-	}
-
-	fn fetch_accumulator(&self) -> u8 {
-		let res = self.registers.A;
-		debug!("Fetched accumulator: {}", res);
-		res
-	}
-
-	/// Relative addressing is PC + offset.
-	/// The offset is the next byte after opcode.
-	/// So we fetch the next byte (after opcode) and add it with PC.
-	/// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
-	fn fetch_relative(&self) -> u16 {
-		let pc = self.registers.PC;
-		let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
-		// Here we need a way to add 'u16' type with 'i8' type.
-		// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
-		// Its very complex to do this manually, without this feature. So what the hell.
-		let res = pc.wrapping_add_signed(offset as i16);
-
-		debug!("Fetched relative: {}", res);
-		res
-	}
+	// /// Relative addressing is PC + offset.
+	// /// The offset is the next byte after opcode.
+	// /// So we fetch the next byte (after opcode) and add it with PC.
+	// /// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
+	// fn fetch_relative(&self) -> u16 {
+	// 	let pc = self.registers.PC;
+	// 	let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
+	// 	// Here we need a way to add 'u16' type with 'i8' type.
+	// 	// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
+	// 	// Its very complex to do this manually, without this feature. So what the hell.
+	// 	let res = pc.wrapping_add_signed(offset as i16);
+	// 	debug!("Fetched relative: {}", res);
+	// 	res
+	// }
 
 	fn read_instruction_absolute_address(&self) -> u16 {
 		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
@@ -367,20 +317,58 @@ impl CPU {
 		decoded[0]
 	}
 
-	/// Read memory. This can be in ROM (immediate, for example) or in RAM.
+	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
+		let addr = self.read_instruction_absolute_address() + index as u16;
+		let res = self.bus.memory.read(addr);
+		res
+	}
+
+	fn fetch_zero_page_indexed(&self, index: u8) -> u8 {
+		let instr_addr = self.read_instruction_zero_page_address();
+		let addr = instr_addr.wrapping_add(index);
+		let res = self.bus.memory.read(addr as u16);
+		debug!("Fetched indexed zero page: {:#X}", res);
+		res
+	}
+
+	/// Read memory. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
+	/// All load instructions use this.
 	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
-			//AddressingMode::IMPLIED => 			0, 	// Implied means this instruction doesn't fetch any memory. For now its zero. It won't be used.
-			AddressingMode::ABSOLUTE => 		self.fetch_absolute(),
-			// AddressingMode::RELATIVE => self.fetch_relative(),
-			AddressingMode::IMMEDIATE => 		self.fetch_immediate(),
-			AddressingMode::ACCUMULATOR => 		self.fetch_accumulator(),
-			// AddressingMode::INDIRECTY => self.fetch_indirect_y(),
-			AddressingMode::ZEROPAGE => 		self.fetch_zero_page(),
-			AddressingMode::ZEROPAGEX => 		self.fetch_indexed_zero_page(self.registers.X),
-			AddressingMode::ZEROPAGEY => 		self.fetch_indexed_zero_page(self.registers.Y),
-			AddressingMode::ABSOLUTEX => 		self.fetch_absolute_x(),
-			AddressingMode::ABSOLUTEY => 		self.fetch_absolute_y(),
+			AddressingMode::ABSOLUTE => {
+				let res = self.fetch_absolute_indexed(0);
+				debug!("Fetched absolute,X: {:#X}", res);
+				res
+			},
+			AddressingMode::IMMEDIATE => {
+				let addr = self.registers.PC + 1;
+				let res = self.bus.rom.read(addr);
+				debug!("Fetched immediate: {:#X}", res);
+				res
+			}
+			AddressingMode::ACCUMULATOR => {
+				let res = self.registers.A;
+				debug!("Fetched accumulator: {}", res);
+				res
+			},
+			AddressingMode::ZEROPAGE => {
+				let addr = self.read_instruction_zero_page_address();
+				let res = self.bus.memory.read(addr as u16);
+				debug!("Fetched from zero page: {:#X}", res);
+				res
+			},
+			AddressingMode::ZEROPAGEX => 		self.fetch_zero_page_indexed(self.registers.X),
+			AddressingMode::ZEROPAGEY => 		self.fetch_zero_page_indexed(self.registers.Y),
+			AddressingMode::ABSOLUTEX => {
+				let res = self.fetch_absolute_indexed(self.registers.X);
+				debug!("Fetched absolute,X: {:#X}", res);
+				res
+			}
+			AddressingMode::ABSOLUTEY => {
+				let res = self.fetch_absolute_indexed(self.registers.Y);
+				debug!("Fetched absolute,Y: {:#X}", res);
+				res
+			}
 			_ => {
 				error!("The instruction doesn't support addressing mode: {:?}, panic", addrmode);
 				panic!();
@@ -391,9 +379,9 @@ impl CPU {
 	/// Extract the address from instruction
 	fn read_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
-			AddressingMode::IMMEDIATE => self.read_instruction_immediate_address(),
-			AddressingMode::ABSOLUTE => self.read_instruction_absolute_address(),
-			AddressingMode::ZEROPAGE => self.read_instruction_zero_page_address() as u16,
+			AddressingMode::IMMEDIATE => 	self.read_instruction_immediate_address(),
+			AddressingMode::ABSOLUTE => 	self.read_instruction_absolute_address(),
+			AddressingMode::ZEROPAGE => 	self.read_instruction_zero_page_address() as u16,
 			_ => todo!()
 		}
 	}
