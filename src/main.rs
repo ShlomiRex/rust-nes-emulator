@@ -4,6 +4,7 @@ mod bus;
 mod memory;
 mod program_loader;
 mod ppu;
+mod model;
 
 use log::info;
 use simple_logger::SimpleLogger;
