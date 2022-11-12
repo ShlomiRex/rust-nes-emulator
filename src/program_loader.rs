@@ -182,4 +182,22 @@ pub fn load_program_cmp(rom: &mut [u8;65_536]) -> u8 {
 	9
 }
 
+pub fn load_program_cpx(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$05
+	STA $0A
 
+	LDX #$04 	; N=C=Z=0
+	CPX $0A 	; N=1
+
+	LDX #$FF
+	CPX $0A 	; N=C=1 Z=0
+
+	LDX #$05
+	CPX $0A 	; Z=C=1 N=0
+
+	NOP
+	*/
+	write_rom(rom, "a9 05 85 0a a2 04 e4 0a a2 ff e4 0a a2 05 e4 0a ea");
+	9
+}

@@ -206,43 +206,11 @@ impl CPU {
 				self.registers.P.modify_n(new_memory);
 				self.registers.P.modify_z(new_memory);
 			}
-			Instructions::RTI => {
-				// Return from Interrupt
-				// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
-				// pull SR, pull PC
-				todo!();
-			}
 			Instructions::CMP => {
 				// Compare Memory with Accumulator
 				// A - M
 
-				/*
-				Link: http://www.6502.org/tutorials/compare_instructions.html
-				Compare Results | N | Z | C
-				---------------------------
-				A, X, or Y < M  | * | 0 | 0
-				A, X, or Y = M  | 0 | 1 | 1
-				A, X, or Y > M  | * | 0 | 1
-
-				*The N flag will be bit 7 of A, X, or Y - Memory
-				*/
-				
-				let fetched_memory = self.fetch_memory(&addrmode);
-				
-				let sub = self.registers.A.wrapping_sub(fetched_memory);
-				let last_bit = (sub >> 7) == 1;
-
-				let (new_n, new_z, new_c) = if self.registers.A < fetched_memory {
-					(last_bit, false, false)
-				} else if self.registers.A == fetched_memory {
-					(false, true, true)
-				} else {
-					(last_bit, false, true)
-				};
-
-				self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, new_n);
-				self.registers.P.set(ProcessorStatusRegisterBits::ZERO, new_z);
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
+				self.exec_cmp(addrmode, self.registers.A);
 			}
 			Instructions::JMP => {
 				// Jump to New Location
@@ -250,6 +218,28 @@ impl CPU {
 				// (PC+2) -> PCH
 				let addr = self.fetch_instruction_address(addrmode);
 				self.registers.PC = addr;
+			}
+			Instructions::CPX => {
+				// Compare Memory and Index X
+				// X - M
+
+				self.exec_cmp(addrmode, self.registers.X);
+			}
+			Instructions::CPY => {
+				// Compare Memory and Index Y
+				// Y - M
+
+				self.exec_cmp(addrmode, self.registers.Y);
+			}
+			Instructions::BIT => {
+				// Test Bits in Memory with Accumulator
+
+				// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+				// the zero-flag is set to the result of operand AND accumulator.
+
+				// A AND M, M7 -> N, M6 -> V
+
+				todo!();
 			}
 			_ => {
 				error!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -435,6 +425,38 @@ impl CPU {
 		let lsb = self.bus.memory.read(indirect_addr) as u16;
 		let msb = self.bus.memory.read(indirect_addr + 1) as u16;
 		(msb << 8) | lsb
+	}
+
+	/// Execute cmp instruction.
+	/// Possible instructions: CMP (A register), CPX (X register), CPY (Y register).
+	fn exec_cmp(&mut self, addrmode: AddressingMode, register: u8) {
+		/*
+		Link: http://www.6502.org/tutorials/compare_instructions.html
+		Compare Results | N | Z | C
+		---------------------------
+		A, X, or Y < M  | * | 0 | 0
+		A, X, or Y = M  | 0 | 1 | 1
+		A, X, or Y > M  | * | 0 | 1
+
+		*The N flag will be bit 7 of A, X, or Y - Memory
+		*/
+		let fetched_memory = self.fetch_memory(&addrmode);
+				
+		let sub = register.wrapping_sub(fetched_memory);
+		let last_bit = (sub >> 7) == 1;
+
+		let (new_n, new_z, new_c) = 
+			if register < fetched_memory {
+				(last_bit, false, false)
+			} else if register == fetched_memory {
+				(false, true, true)
+			} else {
+				(last_bit, false, true)
+			};
+
+		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, new_n);
+		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, new_z);
+		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
 	}
 
 }
@@ -706,6 +728,38 @@ mod tests {
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_cpx() {
+		// cpy is same...
+		let mut cpu = initialize(load_program_cpx);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 
 		cpu.clock_tick();
 	}
