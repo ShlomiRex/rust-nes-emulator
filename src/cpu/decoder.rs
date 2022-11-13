@@ -71,31 +71,32 @@ pub enum Instructions {
 /// | Mode | Description |
 /// |---|---|
 /// | IMPLIED | No data is needed to be fetched to execute the instruction |
+/// | IMMEDIATE | Data defined in next byte after opcode |
 /// | ABSOLUTE | The next 2 bytes after opcode is the memory, which indicates memory location in absolute integer |
-/// | INDEXED | Indexed addressing modes use the X or Y register to help determine the address. |
+/// | INDEXED | Indexed addressing modes use the X or Y register to help determine the address. We add absolute address with X or Y register to calculate final address. |
 /// | ZEROPAGE | Zero page is only the first 256 bytes of memory (absolute address of $0-$FF). The next byte after opcode is the memory address to take the data from. For example, `LDA $35` will load the 2 bytes at the memory location of 35. Advantage of zero-page are two - the instruction takes one less byte to specify, and it executes in less CPU cycles.|
 /// | RELATIVE | The next byte after opcode is offset. Add program counter with offset to get relative address. |
 /// | ACCUMULATOR | The memory needed to execute instruction is inside A register |
-/// | INDIRECT | The `JMP` instruction is the only instruction which uses indirect. The instruction is 3 bytes long. Consider: `JMP ($1000)`, and at memory $1000, $1001 the bytes are: `52 3a`, then the PC will be set to $3a52. |
+/// | INDIRECT | The `JMP` instruction is the only instruction which uses indirect (yes, really). The instruction is 3 bytes long. Consider: `JMP ($1000)`, and at memory $1000, $1001 the bytes are: `52 3a`, then the PC will be set to $3a52. |
 /// | INDIRECTX |  |
 /// | INDIRECTY |  |
-/// | IMMEDIATE | Data defined in next byte after opcode |
+/// | ZEROPAGEX | Like ZEROPAGE, but also add X index |
+/// | ZEROPAGEY | Like ZEROPAGE, but also add Y index |
 #[derive(PartialEq, Debug)]
 pub enum AddressingMode {
-	IMPLIED, 		// 1 byte
-	ABSOLUTE, 		// 3 bytes
+	IMPLIED,
+	ABSOLUTE,
 	ABSOLUTEX,
 	ABSOLUTEY,
-	// INDEXED, 		// 3 bytes
-	ZEROPAGE, 		// 2 bytes
+	ZEROPAGE,
 	ZEROPAGEX,
 	ZEROPAGEY,
-	RELATIVE, 		// 2 bytes
-	ACCUMULATOR, 	// 1 byte
+	RELATIVE,  		// TODO: Create test case
+	ACCUMULATOR,
 	INDIRECT, 
-	INDIRECTX, 		// 2 bytes
-	INDIRECTY, 		// 2 bytes
-	IMMEDIATE , 	// 2 bytes
+	INDIRECTX,  	// TODO: Create test case
+	INDIRECTY, 		// TODO: Create test case
+	IMMEDIATE,
 }
 
 
