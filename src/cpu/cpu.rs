@@ -514,7 +514,7 @@ mod tests {
 	// NOTE: For each program, the last cpu tick is NOP, except for branch instructions, the last instruction in those is the stored instruction in memory.
 
 	#[test]
-	fn stack_test() {
+	fn test_stack() {
 		let mut cpu = initialize(load_program_stack);
 
 		cpu.clock_tick();
@@ -536,7 +536,7 @@ mod tests {
 	}
 
 	#[test]
-	fn lda_test() {
+	fn test_lda() {
 		let mut cpu = initialize(load_program_lda);
 
 		cpu.clock_tick();
@@ -548,7 +548,7 @@ mod tests {
 	}
 
 	#[test]
-	fn adc_test() {
+	fn test_adc() {
 		let mut cpu = initialize(load_program_adc);
 
 		cpu.clock_tick();
