@@ -440,11 +440,9 @@ impl CPU {
 		(msb << 8) | lsb
 	}
 
-	/// Adds absolute address with index and carry.
+	/// Adds absolute address with index.
 	fn read_instruction_absolute_indexed_address(&self, index: u8) -> u16 {
-		let mut addr = self.read_instruction_absolute_address();
-		addr += index as u16 + self.registers.P.get(ProcessorStatusRegisterBits::CARRY) as u16;
-		addr
+		self.read_instruction_absolute_address() + (index as u16)
 	}
 
 	/// Reads zero-page address stored in ROM at the current PC.
