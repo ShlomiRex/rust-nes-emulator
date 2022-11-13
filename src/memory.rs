@@ -1,14 +1,3 @@
-// Note:
-// Address is 2 bytes, usize is 64 bits on x64 and 32 bits on x86.
-// So converting u16 to usize never overflows, so casting is no problem.
-
-
-// https://web.archive.org/web/20210803073202/http://www.obelisk.me.uk/6502/architecture.html
-// Zero page: 0x0000 - 0x00FF : is the focus of a number of special addressing modes that result in shorter (and quicker) instructions or allow indirect access to the memory (256 bytes of memory)
-// Stack: 	  0x0100 - 0x01FF : is reserved for the system stack and which cannot be relocated. (256 bytes of stack!)
-// Reserved memory: 0xFFFA - 0xFFFF (last 6 bytes) : must be programmed with the addresses of the non-maskable interrupt handler ($FFFA/B), the power on reset location ($FFFC/D) and the BRK/interrupt request handler ($FFFE/F) respectively.
-
-
 extern crate hex;
 
 use log::debug;
@@ -22,34 +11,36 @@ pub struct ROM {
 	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
 }
 
+/// From page 11: https://www.nesdev.org/NESDoc.pdf
+#[derive(Debug)]
 enum MemoryMap {
 	ZEROPAGE, 			// 0x0000 - 0x00FF
 	STACK,				// 0x0100 - 0x01FF
-	MappedIO,			// 0x2000 - 0x6000
-	PpuMask, 			// 0x2001
-	PpuStatus, 			// 0x2002
-	// InterruptVectors, 	// (0xFFFA, 0xFFB), (0xFFFC, 0xFFFD), (0xFFFE, 0xFFFF)
-	OTHER,  			// everything else (it will be completed when I understand memory better)
+	RAM, 				// 0x0200 - 0x07FF
+	Mirrors0000_07FF, 	// 0x0800 - 0x1FFF
+	MappedIO,			// 0x2000 - 0x4020
+	ExpansionROM, 		// 0x4020 - 0x5FFF
+	SRAM, 				// 0x6000 - 0x7FFF
+	PrgRom,  			// 0x8000 - 0xFFFF
 }
 
-/// Read = if you intend to read or write to mm.
-fn get_memory_map(addr: u16, read: bool) -> MemoryMap {
+fn get_memory_map(addr: u16) -> MemoryMap {
 	if addr <= 0x00FF {
 		MemoryMap::ZEROPAGE
-	} else if addr >= 0x100 && addr < 0x200 {
+	} else if addr >= 0x0100 && addr < 0x0200 {
 		MemoryMap::STACK
-	} else if addr >= 0x2000 && addr < 0x6000 {
-		if addr == 0x2002 {
-			if read {
-				MemoryMap::PpuStatus
-			} else {
-				panic!("You can't write to PPU Status memory. It's read only.");
-			}
-		} else {
-			MemoryMap::MappedIO
-		}
+	} else if addr >= 0x0200 && addr < 0x0800 {
+		MemoryMap::RAM
+	} else if addr >= 0x0800 && addr < 0x2000{
+		MemoryMap::Mirrors0000_07FF
+	} else if addr >= 0x2000 && addr < 0x4020 {
+		MemoryMap::MappedIO
+	} else if addr >= 0x4020 && addr < 0x6000 {
+		MemoryMap::ExpansionROM
+	} else if addr >= 0x6000 && addr < 0x5FFF {
+		MemoryMap::SRAM
 	} else {
-		MemoryMap::OTHER
+		MemoryMap::PrgRom
 	}
 }
 
@@ -59,27 +50,13 @@ impl MemoryBus {
 	}
 
 	fn debug_write(&self, addr: u16, data: u8) {
-		let map = get_memory_map(addr, false);
-		match map {
-			MemoryMap::ZEROPAGE 		=> debug!("Writing to zero page, address: {:#X}, data: {:#X}", addr, data),
-			MemoryMap::STACK 			=> debug!("Writing to stack, address: {:#X}, data: {:#X}", addr, data),
-			MemoryMap::MappedIO			=> debug!("Writing to memory mapped i/o, address: {:#X}, data: {:#X}", addr, data),
-			MemoryMap::PpuStatus 		=> (),
-			MemoryMap::PpuMask 			=> debug!("Writing to PPU mask, address: {:#X}, data: {:#X}", addr, data),
-			MemoryMap::OTHER 			=> debug!("Writing to address: {:#X}, data: {:#X}", addr, data)
-		}
+		let map = get_memory_map(addr);
+		debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
 	}
 
 	fn debug_read(&self, addr: u16) {
-		let map = get_memory_map(addr, true);
-		match map {
-			MemoryMap::ZEROPAGE 		=> debug!("Reading from zero page, address: {:#X}", addr),
-			MemoryMap::STACK 			=> debug!("Reading from stack, address: {:#X}", addr),
-			MemoryMap::MappedIO			=> debug!("Reading from memory mapped i/o, address: {:#X}", addr),
-			MemoryMap::PpuStatus 		=> debug!("Reading from PPU status, address: {:#X}", addr),
-			MemoryMap::PpuMask 			=> debug!("Reading from PPU mask, address: {:#X}", addr),
-			MemoryMap::OTHER 			=> debug!("Reading from	address: {:#X}", addr)
-		}
+		let map = get_memory_map(addr);
+		debug!("Reading from {:?}, address: {:#X}", map, addr);
 	}
 	
 	/// Write a single byte to memory.
@@ -117,7 +94,7 @@ mod tests {
 	use super::*;
 
     #[test]
-    fn ram_test() {
+    fn test_ram() {
 		let mut ram: MemoryBus = MemoryBus { memory: Box::new([0; 65536]) };
 		let addr: u16 = 0x1234;
 		ram.write(addr, 0xAB);
