@@ -28,7 +28,7 @@ enum MemoryMap {
 	MappedIO,			// 0x2000 - 0x6000
 	PpuMask, 			// 0x2001
 	PpuStatus, 			// 0x2002
-	// InterruptVectors, 	// 0xFFFD, 0xFFFE, 0xFFFF
+	// InterruptVectors, 	// (0xFFFA, 0xFFB), (0xFFFC, 0xFFFD), (0xFFFE, 0xFFFF)
 	OTHER,  			// everything else (it will be completed when I understand memory better)
 }
 

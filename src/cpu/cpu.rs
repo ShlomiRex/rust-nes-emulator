@@ -349,7 +349,7 @@ impl CPU {
 	}
 
 	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
-		let addr = self.read_instruction_absolute_address() + index as u16;
+		let addr = self.read_instruction_absolute_indexed_address(index);
 		self.bus.memory.read(addr)
 	}
 
@@ -427,6 +427,8 @@ impl CPU {
 			AddressingMode::ABSOLUTE => 	self.read_instruction_absolute_address(),
 			AddressingMode::ZEROPAGE => 	self.read_instruction_zero_page_address() as u16,
 			AddressingMode::INDIRECT => 	self.read_instruction_indirect_address(),
+			AddressingMode::ABSOLUTEX => 	self.read_instruction_absolute_indexed_address(self.registers.X),
+			AddressingMode::ABSOLUTEY => 	self.read_instruction_absolute_indexed_address(self.registers.Y),
 			_ => todo!()
 		}
 	}
@@ -436,6 +438,13 @@ impl CPU {
 		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
 		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
 		(msb << 8) | lsb
+	}
+
+	/// Adds absolute address with index and carry.
+	fn read_instruction_absolute_indexed_address(&self, index: u8) -> u16 {
+		let mut addr = self.read_instruction_absolute_address();
+		addr += index as u16 + self.registers.P.get(ProcessorStatusRegisterBits::CARRY) as u16;
+		addr
 	}
 
 	/// Reads zero-page address stored in ROM at the current PC.
@@ -805,4 +814,19 @@ mod tests {
 		assert_eq!(cpu.registers.S, 0xFF);
 	}
 
+	#[test]
+	fn test_indexed_absolute() {
+		let mut cpu = initialize(load_program_absolute_indexed_with_carry);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		
+
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x20AB), 0xFF);
+
+		cpu.clock_tick();
+	}
 }

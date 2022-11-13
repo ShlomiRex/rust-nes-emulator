@@ -210,3 +210,15 @@ pub fn load_program_jsr(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "20 0b 0a");
 	1
 }
+
+pub fn load_program_absolute_indexed_with_carry(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	SEC
+	LDX #$AB 		; X = AB
+	LDA #$FF		; A = FF
+	STA $2000,x 	; $20AC = FF, because of carry: 0x20AB + 0x1 = 0x20AC
+	NOP
+	*/
+	write_rom(rom, "38 a2 ab a9 ff 9d 00 20 ea");
+	5
+}
