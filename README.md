@@ -30,6 +30,13 @@ So you must use nightly rust. To do so:
 
 # Resources
 
+The most used resorces:
+
+- Online emulator for quick testing of the CPU: [here](https://skilldrick.github.io/easy6502/#first-program)
+- Best CPU instructions summary: [here](https://www.masswerk.at/6502/6502_instruction_set.html#CPX)
+
+Others:
+
 - CPU Registers: [wiki](https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers)
 - R6500 Microchip datasheet: [datasheet](https://datasheetspdf.com/pdf-file/527507/Rockwell/R6502/1)
 - Complete NES Emulator from scratch: [YouTube](https://www.youtube.com/watch?v=F8kx56OZQhg)
