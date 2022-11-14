@@ -311,6 +311,31 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
 			}
+			Instructions::ASL => {
+				// Shift Left One Bit (Memory or Accumulator)
+				// C <- [76543210] <- 0
+
+				// Memory can be register.
+				let fetched_memory = self.fetch_memory(&addrmode);
+				let result = fetched_memory << 1;
+
+				// Determine if shift overflowed (if yes, then set carry)
+				// If last bit is 1, and we left shift, then that bit is the carry.
+				let new_carry = (fetched_memory >> 7) == 1;
+
+				// Now we need to know where to put the result. Register or memory?
+				if addrmode == AddressingMode::ACCUMULATOR {
+					self.registers.A = result;
+				} else {
+					// Get memory location.
+					let addr = self.fetch_instruction_address(addrmode);
+					self.bus.memory.write(addr, result);
+				}
+
+				self.registers.P.modify_n(result);
+				self.registers.P.modify_z(result);
+				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
@@ -408,7 +433,7 @@ impl CPU {
 		self.bus.memory.read(addr as u16)
 	}
 
-	/// Fetch memory required by the instruction. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
+	/// Fetch memory required by the instruction. This can be in ROM (immediate, for example) or in RAM (absolute, for example), or CPU register.
 	/// All load instructions use this.
 	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
@@ -928,6 +953,42 @@ mod tests {
 		assert_eq!(cpu.registers.A, 0x00);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_asl() {
+		let mut cpu = initialize(load_program_asl);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x04);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xF8);
+
+		cpu.clock_tick(); // clc
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x7F);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFE);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFC);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.bus.memory.read(0x2000), 0x04);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.bus.memory.read(0x2000), 0x08);
 
 		cpu.clock_tick();
 	}

@@ -257,6 +257,32 @@ pub fn load_program_and(rom: &mut [u8;65_536]) -> u8 {
 	6
 }
 
+pub fn load_program_asl(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$01
+	ASL A
+	ASL A
+
+	LDA #$FF
+	ASL A
+	ASL A
+	ASL A
+
+	CLC
+	LDA #$7F
+	ASL
+	ASL
+
+	LDX #$04
+	STX $2000
+	ASL $2000
+
+	NOP
+	*/
+	write_rom(rom, "a9 01 0a 0a a9 ff 0a 0a 0a 18 a9 7f 0a 0a a2 04 8e 00 20 0e 00 20 ea");
+	15
+}
+
 // pub fn load_program_page_crossed(rom: &mut [u8;65_536]) -> u8 {
 // 	// Page cross = 
 // }
