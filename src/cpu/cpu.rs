@@ -210,6 +210,7 @@ impl CPU {
 				// Jump to New Location
 				// (PC+1) -> PCL
 				// (PC+2) -> PCH
+
 				let addr = self.fetch_instruction_address(addrmode);
 				self.registers.PC = addr;
 			}
@@ -254,15 +255,52 @@ impl CPU {
 
 				self.exec_cmp(addrmode, self.registers.Y);
 			}
-			Instructions::BIT => {
-				// Test Bits in Memory with Accumulator
+			Instructions::TAX => {
+				// Transfer Accumulator to Index X
+				// A -> X
 
-				// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
-				// the zero-flag is set to the result of operand AND accumulator.
+				self.registers.X = self.registers.A;
+				self.registers.P.modify_n(self.registers.X);
+				self.registers.P.modify_z(self.registers.X);
+			}
+			Instructions::TAY => {
+				// Transfer Accumulator to Index Y
+				// A -> Y
 
-				// A AND M, M7 -> N, M6 -> V
+				self.registers.Y = self.registers.A;
+				self.registers.P.modify_n(self.registers.Y);
+				self.registers.P.modify_z(self.registers.Y);
+			}
+			Instructions::TSX => {
+				// Transfer Stack Pointer to Index X
+				// SP -> X
 
-				todo!();
+				self.registers.X = self.registers.S;
+				self.registers.P.modify_n(self.registers.X);
+				self.registers.P.modify_z(self.registers.X);
+			}
+			Instructions::TXA => {
+				// Transfer Index X to Accumulator
+				// X -> A
+
+				self.registers.A = self.registers.X;
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
+			}
+			Instructions::TXS => {
+				// Transfer Index X to Stack Register
+				// X -> SP
+
+				self.registers.S = self.registers.X;
+				// We don't modify N or Z.
+			}
+			Instructions::TYA => {
+				// Transfer Index Y to Accumulator
+				// Y -> A
+
+				self.registers.A = self.registers.Y;
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
 			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -314,13 +352,16 @@ impl CPU {
 	// 	res
 	// }
 
-	/// $0xFFFA, $0xFFFB
+	// TODO: Complete after creating PPU.
+	/// Reset interrupt. Address: $0xFFFC, $0xFFFD
+	// fn res_interrupt(&self) {
+	// 	debug!("Reset interrupt");
+	// }
+
+	/// Non-maskable interrupt. Address: $0xFFFA, $0xFFFB
 	// fn nmi_interrupt(&self)
 
-	/// $0xFFFC, $0xFFFD
-	// fn res_interrupt(&self)
-
-	/// $0xFFFE, $0xFFFF
+	/// Maskable interrupt. Address: $0xFFFE, $0xFFFF
 	// fn irq_interrupt(&self)
 
 	fn push_stack(&mut self, data: u8) {
@@ -336,7 +377,6 @@ impl CPU {
 		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to get the head (the stack is down going)
 		let res = self.bus.memory.read(head_addr);
 		self.registers.S = self.registers.S.wrapping_add(1);  // NOTE: We allow the programmer to overflow SP.
-		//self.registers.S += 1;
 		debug!("Poped stack: \t{:#X}", res);
 		res
 	}
@@ -460,6 +500,7 @@ impl CPU {
 
 	/// Execute cmp instruction.
 	/// Possible instructions: CMP (A register), CPX (X register), CPY (Y register).
+	/// CMP is quite complex, which is why it has its own CPU function.
 	fn exec_cmp(&mut self, addrmode: AddressingMode, register: u8) {
 		/*
 		Link: http://www.6502.org/tutorials/compare_instructions.html
@@ -844,6 +885,8 @@ mod tests {
 		assert_ne!(cpu.registers.X, 0xAA);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x00);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
 		cpu.clock_tick();
 		assert_ne!(cpu.registers.A, 0x00);
 		cpu.clock_tick();
@@ -852,7 +895,17 @@ mod tests {
 		assert_eq!(cpu.registers.S, 0xBB);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xAA);
+
+		// Run the program without debug and see whats the final flags. Easier than do it after the immediate instruction.
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
 		cpu.clock_tick();
 	}
+
+	// fn test_page_crossed() {
+	// 	let mut cpu = initialize();
+
+	// 	cpu.clock_tick();
+	// }
 
 }

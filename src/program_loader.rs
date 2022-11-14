@@ -236,7 +236,7 @@ pub fn load_program_transfers(rom: &mut [u8;65_536]) -> u8 {
 	LDA #$00 	; A = 00
 	TXA			; A != 00
 	LDX #$BB	; X = BB
-	TXS			; S == FF
+	TXS			; S = BB
 	TYA			; A = AA
 	NOP
 	*/
