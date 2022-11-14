@@ -273,13 +273,13 @@ pub fn load_program_asl(rom: &mut [u8;65_536]) -> u8 {
 	ASL
 	ASL
 
-	LDX #$04
+	LDX #$80
 	STX $2000
 	ASL $2000
 
 	NOP
 	*/
-	write_rom(rom, "a9 01 0a 0a a9 ff 0a 0a 0a 18 a9 7f 0a 0a a2 04 8e 00 20 0e 00 20 ea");
+	write_rom(rom, "a9 01 0a 0a a9 ff 0a 0a 0a 18 a9 7f 0a 0a a2 80 8e 00 20 0e 00 20 ea");
 	15
 }
 

@@ -985,10 +985,12 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x2000), 0x04);
+		assert_eq!(cpu.bus.memory.read(0x2000), 0x80);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
-		assert_eq!(cpu.bus.memory.read(0x2000), 0x08);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.bus.memory.read(0x2000), 0x00);
 
 		cpu.clock_tick();
 	}
