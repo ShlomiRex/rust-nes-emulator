@@ -226,3 +226,20 @@ pub fn load_program_absolute_indexed_with_carry(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "38 a2 ab a9 ff 9d 00 20 ea");
 	5
 }
+
+pub fn load_program_transfers(rom: &mut [u8;65_536]) -> u8 {	
+	/*
+	LDA #$AA	; A = AA
+	TAX  		; X = AA
+	TAY 		; Y = AA
+	TSX			; X != AA, SP lower bytes end with 0xFF, since the stack is empty
+	LDA #$00 	; A = 00
+	TXA			; A != 00
+	LDX #$BB	; X = BB
+	TXS			; S == FF
+	TYA			; A = AA
+	NOP
+	*/
+	write_rom(rom, "a9 aa aa a8 ba a9 00 8a a2 bb 9a 98 ea");
+	9
+}

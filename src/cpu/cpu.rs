@@ -827,4 +827,32 @@ mod tests {
 
 		cpu.clock_tick();
 	}
+
+	#[test]
+	fn test_all_transfers() {
+		// I know, its stupid test. But more tests = better. It will all payout eventually.
+		let mut cpu = initialize(load_program_transfers);
+
+		assert_eq!(cpu.registers.S, 0xFF);
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xAA);
+		assert_eq!(cpu.registers.X, 0xAA);
+		assert_eq!(cpu.registers.Y, 0xAA);
+		cpu.clock_tick();
+		assert_ne!(cpu.registers.X, 0xAA);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x00);
+		cpu.clock_tick();
+		assert_ne!(cpu.registers.A, 0x00);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.X, 0xBB);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.S, 0xBB);
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xAA);
+		cpu.clock_tick();
+	}
+
 }
