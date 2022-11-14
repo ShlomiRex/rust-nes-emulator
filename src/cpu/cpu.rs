@@ -302,6 +302,15 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
 			}
+			Instructions::AND => {
+				// AND Memory with Accumulator
+				// A AND M -> A
+
+				let fetched_memory = self.fetch_memory(&addrmode);
+				self.registers.A = self.registers.A & fetched_memory;
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
@@ -399,7 +408,7 @@ impl CPU {
 		self.bus.memory.read(addr as u16)
 	}
 
-	/// Read memory. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
+	/// Fetch memory required by the instruction. This can be in ROM (immediate, for example) or in RAM (absolute, for example).
 	/// All load instructions use this.
 	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
@@ -898,6 +907,27 @@ mod tests {
 
 		// Run the program without debug and see whats the final flags. Easier than do it after the immediate instruction.
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_and() {
+		let mut cpu = initialize(load_program_and);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0xFF);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x83);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.A, 0x00);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
 
 		cpu.clock_tick();
 	}

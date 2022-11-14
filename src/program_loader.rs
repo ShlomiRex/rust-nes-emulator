@@ -243,3 +243,20 @@ pub fn load_program_transfers(rom: &mut [u8;65_536]) -> u8 {
 	write_rom(rom, "a9 aa aa a8 ba a9 00 8a a2 bb 9a 98 ea");
 	9
 }
+
+pub fn load_program_and(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDA #$FF
+	AND #$FF ; A = 0xFF
+	LDA #$AB
+	AND #$C3 ; A = 0x83
+	AND #$00 ; A = 0
+	NOP
+	*/
+	write_rom(rom, "a9 ff 29 ff a9 ab 29 c3 29 00 ea");
+	6
+}
+
+// pub fn load_program_page_crossed(rom: &mut [u8;65_536]) -> u8 {
+// 	// Page cross = 
+// }
