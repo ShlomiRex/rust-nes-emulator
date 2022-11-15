@@ -1,5 +1,5 @@
 use std::fs;
-use log::{debug};
+use log::{debug, info};
 
 #[derive(Default)]
 struct Header {
@@ -42,5 +42,10 @@ impl RomParser {
 			flags9: header_bytes[9],
 			flags10: header_bytes[10]
 		};
+
+		let padding_bytes = &header_bytes[11..];
+		if padding_bytes != [0, 0, 0, 0, 0] {
+			debug!("Padding bytes are not zero: {:?}", padding_bytes);
+		}
 	}
 }
