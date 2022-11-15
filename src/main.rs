@@ -42,11 +42,17 @@ fn main() {
 	let mut rom_parser = RomParser::new();
 	rom_parser.parse(path);
 	let prg_rom = rom_parser.prg_rom;
-	let mut rom_memory: [u8; 65_536] = [0;65_536];
 	
 	let rom: ROM = ROM {
-		rom: Box::new(rom_memory)
+		rom: prg_rom
 	};
 	let bus = Box::new(Bus::new(rom));
 	let mut cpu = CPU::new(bus);
+	cpu.clock_tick();
+	cpu.clock_tick();
+	cpu.clock_tick();
+	cpu.clock_tick();
+	cpu.clock_tick();
+	cpu.clock_tick();
+	cpu.clock_tick();
 }

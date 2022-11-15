@@ -8,7 +8,7 @@ pub struct MemoryBus {
 }
 
 pub struct ROM {
-	pub rom: Box<[u8; 65_536]> 		// NOTE: ROM can be very big (8MB). For now I leave it at 64kb.
+	pub rom: Vec<u8> 		// ROM size is not fixed; However, its usually 32kb.
 }
 
 /// From page 11: https://www.nesdev.org/NESDoc.pdf

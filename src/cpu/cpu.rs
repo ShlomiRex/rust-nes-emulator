@@ -17,11 +17,13 @@ impl CPU {
 	pub fn new(bus: Box<Bus>) -> Self {
 		let mut registers: Registers = Registers::default();
 		registers.S = 0xFF; //TODO: Remove. The original NES does not initialize the stack register; Its random at startup. But I need this to debug my programs for now.
-		CPU {
+		let cpu = CPU {
 			registers,
 			bus,
 			cycles: 0
-		}
+		};
+		cpu.res_interrupt();
+		cpu
 	}
 
 	/// A single clock cycle is executed here.
@@ -32,7 +34,7 @@ impl CPU {
 		debug!("{}", self.registers);
 
 		// Read next instruction.
-		let opcode = self.bus.rom.read(self.registers.PC); // Read at address of Program Counter (duh!)
+		let opcode = self.bus.memory.read(self.registers.PC); // Read at address of Program Counter (duh!)
 		let instruction = decode_opcode(opcode);
 
 		let instr = instruction.0;
@@ -388,9 +390,11 @@ impl CPU {
 
 	// TODO: Complete after creating PPU.
 	/// Reset interrupt. Address: $0xFFFC, $0xFFFD
-	// fn res_interrupt(&self) {
-	// 	debug!("Reset interrupt");
-	// }
+	fn res_interrupt(&self) {
+		debug!("Reset interrupt called");
+
+		self.bus.memory.read(0xFFFF);
+	}
 
 	/// Non-maskable interrupt. Address: $0xFFFA, $0xFFFB
 	// fn nmi_interrupt(&self)
@@ -442,7 +446,7 @@ impl CPU {
 			}
 			AddressingMode::IMMEDIATE => {
 				let addr = self.registers.PC + 1;
-				let res = self.bus.rom.read(addr);
+				let res = self.bus.memory.read(addr);
 				debug!("Fetched immediate: {:#X}", res);
 				res
 			}
@@ -494,7 +498,7 @@ impl CPU {
 	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
 			AddressingMode::IMMEDIATE => {
-				let res = self.bus.rom.read(self.registers.PC + 1) as u16;
+				let res = self.bus.memory.read(self.registers.PC + 1) as u16;
 				debug!("Fetched immediate address: {:#X}", res);
 				res
 			}
@@ -509,9 +513,7 @@ impl CPU {
 
 	/// Reads address stored in ROM at the current PC.
 	fn read_instruction_absolute_address(&self) -> u16 {
-		let lsb = self.bus.rom.read(self.registers.PC + 1) as u16;
-		let msb = self.bus.rom.read(self.registers.PC + 2) as u16;
-		(msb << 8) | lsb
+		self.read_address_from_memory(self.registers.PC + 1)
 	}
 
 	/// Adds absolute address with index.
@@ -521,15 +523,13 @@ impl CPU {
 
 	/// Reads zero-page address stored in ROM at the current PC.
 	fn read_instruction_zero_page_address(&self) -> u8 {
-		self.bus.rom.read(self.registers.PC + 1)
+		self.bus.memory.read(self.registers.PC + 1)
 	}
 
 	/// Returns address stored in memory, from the absolute address in ROM, at the current PC.
 	fn read_instruction_indirect_address(&self) -> u16 {
 		let indirect_addr = self.read_instruction_absolute_address();
-		let lsb = self.bus.memory.read(indirect_addr) as u16;
-		let msb = self.bus.memory.read(indirect_addr + 1) as u16;
-		(msb << 8) | lsb
+		self.read_address_from_memory(indirect_addr)
 	}
 
 	/// Execute cmp instruction.
@@ -565,6 +565,13 @@ impl CPU {
 		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
 	}
 
+	/// Read 2 bytes from memory that represent an address
+	fn read_address_from_memory(&self, addr: u16) -> u16 {
+		let lsb = self.bus.memory.read(addr) as u16;
+		let msb = self.bus.memory.read(addr + 1) as u16;
+		(msb << 8) | lsb
+	}
+
 }
 
 #[cfg(test)]
@@ -578,7 +585,7 @@ mod tests {
 		let mut rom_memory: [u8; 65_536] = [0;65_536];
 		f(&mut rom_memory);  // call f - load program
 		let rom: ROM = ROM {
-			rom: Box::new(rom_memory)
+			rom: rom_memory.to_vec()
 		};
 		let bus = Box::new(Bus::new(rom));
 		let cpu = CPU::new(bus);
