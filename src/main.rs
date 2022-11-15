@@ -7,10 +7,10 @@ pub mod program_loader;
 mod render;
 mod rom_parser;
 
-// use log::info;
-// use bus::Bus;
-// use memory::ROM;
-// use cpu::cpu::CPU;
+use log::debug;
+use bus::Bus;
+use memory::ROM;
+use cpu::cpu::CPU;
 // use program_loader::*;
 use simple_logger::SimpleLogger;
 use rom_parser::RomParser;
@@ -41,4 +41,12 @@ fn main() {
 	let path = "6502asm_programs/minimal.nes";
 	let mut rom_parser = RomParser::new();
 	rom_parser.parse(path);
+	let prg_rom = rom_parser.prg_rom;
+	let mut rom_memory: [u8; 65_536] = [0;65_536];
+	
+	let rom: ROM = ROM {
+		rom: Box::new(rom_memory)
+	};
+	let bus = Box::new(Bus::new(rom));
+	let mut cpu = CPU::new(bus);
 }
