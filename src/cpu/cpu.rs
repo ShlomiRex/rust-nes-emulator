@@ -591,9 +591,9 @@ mod tests {
 			rom: rom_memory.to_vec()
 		};
 		let mut bus = Box::new(Bus::new(rom));
-		bus.map_prg_rom();
-		let cpu = CPU::new(bus.memory);
-
+		bus.map_prg_rom(); 
+		let mut cpu = CPU::new(bus.memory);
+		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
 		cpu
 	}
 
