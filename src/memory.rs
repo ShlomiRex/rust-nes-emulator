@@ -4,7 +4,7 @@ use log::debug;
 
 /// Addressable memory (64kb). Includes zero page, CPU ram, PPU registers, Cartidge memory, basically all available addressable memory.
 pub struct MemoryBus {
-	memory: Box<[u8; 65_536]>
+	pub memory: Box<[u8; 65_536]>
 }
 
 pub struct ROM {
@@ -12,7 +12,7 @@ pub struct ROM {
 }
 
 /// From page 11: https://www.nesdev.org/NESDoc.pdf
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum MemoryMap {
 	ZEROPAGE, 			// 0x0000 - 0x00FF
 	STACK,				// 0x0100 - 0x01FF
@@ -56,7 +56,9 @@ impl MemoryBus {
 
 	fn debug_read(&self, addr: u16) {
 		let map = get_memory_map(addr);
-		debug!("Reading from {:?}, address: {:#X}", map, addr);
+		if map != MemoryMap::PrgRom {
+			debug!("Reading from {:?}, address: {:#X}", map, addr);
+		}
 	}
 	
 	/// Write a single byte to memory.

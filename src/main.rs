@@ -46,13 +46,16 @@ fn main() {
 	let rom: ROM = ROM {
 		rom: prg_rom
 	};
-	let bus = Box::new(Bus::new(rom));
-	let mut cpu = CPU::new(bus);
+	let mut bus = Box::new(Bus::new(rom));
+	bus.map_prg_rom();
+
+	let mut cpu = CPU::new(bus.memory);
 	cpu.clock_tick();
 	cpu.clock_tick();
 	cpu.clock_tick();
 	cpu.clock_tick();
 	cpu.clock_tick();
 	cpu.clock_tick();
-	cpu.clock_tick();
+	
+
 }

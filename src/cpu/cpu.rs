@@ -4,22 +4,23 @@ use log::{debug, error, warn};
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::bus::Bus;
+use crate::memory::MemoryBus;
 
 use hex::FromHex;
 
 pub struct CPU {
 	registers: Registers,
-	bus: Box<Bus>,
+	memory: MemoryBus,
 	cycles: u64
 }
 
 impl CPU {
-	pub fn new(bus: Box<Bus>) -> Self {
+	pub fn new(memory: MemoryBus) -> Self {
 		let mut registers: Registers = Registers::default();
 		registers.S = 0xFF; //TODO: Remove. The original NES does not initialize the stack register; Its random at startup. But I need this to debug my programs for now.
-		let cpu = CPU {
+		let mut cpu = CPU {
 			registers,
-			bus,
+			memory,
 			cycles: 0
 		};
 		cpu.res_interrupt();
@@ -34,7 +35,7 @@ impl CPU {
 		debug!("{}", self.registers);
 
 		// Read next instruction.
-		let opcode = self.bus.memory.read(self.registers.PC); // Read at address of Program Counter (duh!)
+		let opcode = self.memory.read(self.registers.PC); // Read at address of Program Counter (duh!)
 		let instruction = decode_opcode(opcode);
 
 		let instr = instruction.0;
@@ -168,19 +169,19 @@ impl CPU {
 				// Store Index X in Memory
 				// X -> M
 				let addr = self.fetch_instruction_address(addrmode);
-				self.bus.memory.write(addr, self.registers.X);
+				self.memory.write(addr, self.registers.X);
 			}
 			Instructions::STY => {
 				// Store Index Y in Memory
 				// Y -> M
 				let addr = self.fetch_instruction_address(addrmode);
-				self.bus.memory.write(addr, self.registers.Y);
+				self.memory.write(addr, self.registers.Y);
 			}
 			Instructions::STA => {
 				// Store Accumulator in Memory
 				// A -> M
 				let addr = self.fetch_instruction_address(addrmode);
-				self.bus.memory.write(addr, self.registers.A);
+				self.memory.write(addr, self.registers.A);
 			}
 			Instructions::INX => {
 				// Increment Index X by One
@@ -203,7 +204,7 @@ impl CPU {
 				let new_memory = fetched_memory.wrapping_add(1);
 
 				let addr = self.fetch_instruction_address(addrmode);
-				self.bus.memory.write(addr, new_memory);
+				self.memory.write(addr, new_memory);
 
 				self.registers.P.modify_n(new_memory);
 				self.registers.P.modify_z(new_memory);
@@ -331,7 +332,7 @@ impl CPU {
 				} else {
 					// Get memory location.
 					let addr = self.fetch_instruction_address(addrmode);
-					self.bus.memory.write(addr, result);
+					self.memory.write(addr, result);
 				}
 
 				self.registers.P.modify_n(result);
@@ -379,7 +380,7 @@ impl CPU {
 	// /// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
 	// fn fetch_relative(&self) -> u16 {
 	// 	let pc = self.registers.PC;
-	// 	let offset = self.bus.rom.read(self.registers.PC + 1) as i8;
+	// 	let offset = self.rom.read(self.registers.PC + 1) as i8;
 	// 	// Here we need a way to add 'u16' type with 'i8' type.
 	// 	// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
 	// 	// Its very complex to do this manually, without this feature. So what the hell.
@@ -390,10 +391,12 @@ impl CPU {
 
 	// TODO: Complete after creating PPU.
 	/// Reset interrupt. Address: $0xFFFC, $0xFFFD
-	fn res_interrupt(&self) {
+	fn res_interrupt(&mut self) {
 		debug!("Reset interrupt called");
-
-		self.bus.memory.read(0xFFFF);
+		
+		let new_addr = self.read_address_from_memory(0xFFFC);
+		debug!("Jumping to interrupt address: {:#X}", new_addr);
+		self.registers.PC = new_addr;
 	}
 
 	/// Non-maskable interrupt. Address: $0xFFFA, $0xFFFB
@@ -403,7 +406,7 @@ impl CPU {
 	// fn irq_interrupt(&self)
 
 	fn push_stack(&mut self, data: u8) {
-		self.bus.memory.write(0x100 + self.registers.S as u16, data);
+		self.memory.write(0x100 + self.registers.S as u16, data);
 		self.registers.S -= 1;
 		debug!("Pushed to stack: \t{:#X}", data);
 	}
@@ -413,7 +416,7 @@ impl CPU {
 			warn!("Stack pop: stack pointer is at beginning, overflowing stack pointer");
 		}
 		let head_addr: u16 = 0x100 + (self.registers.S as u16) + 1;  // we add 1 before the current SP points to get the head (the stack is down going)
-		let res = self.bus.memory.read(head_addr);
+		let res = self.memory.read(head_addr);
 		self.registers.S = self.registers.S.wrapping_add(1);  // NOTE: We allow the programmer to overflow SP.
 		debug!("Poped stack: \t{:#X}", res);
 		res
@@ -428,13 +431,13 @@ impl CPU {
 
 	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
 		let addr = self.read_instruction_absolute_indexed_address(index);
-		self.bus.memory.read(addr)
+		self.memory.read(addr)
 	}
 
 	fn fetch_zero_page_indexed(&self, index: u8) -> u8 {
 		let instr_addr = self.read_instruction_zero_page_address();
 		let addr = instr_addr.wrapping_add(index);
-		self.bus.memory.read(addr as u16)
+		self.memory.read(addr as u16)
 	}
 
 	/// Fetch memory required by the instruction. This can be in ROM (immediate, for example) or in RAM (absolute, for example), or CPU register.
@@ -446,7 +449,7 @@ impl CPU {
 			}
 			AddressingMode::IMMEDIATE => {
 				let addr = self.registers.PC + 1;
-				let res = self.bus.memory.read(addr);
+				let res = self.memory.read(addr);
 				debug!("Fetched immediate: {:#X}", res);
 				res
 			}
@@ -457,7 +460,7 @@ impl CPU {
 			},
 			AddressingMode::ZEROPAGE => {
 				let addr = self.read_instruction_zero_page_address();
-				let res = self.bus.memory.read(addr as u16);
+				let res = self.memory.read(addr as u16);
 				debug!("Fetched from zero page: {:#X}", res);
 				res
 			},
@@ -498,7 +501,7 @@ impl CPU {
 	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
 			AddressingMode::IMMEDIATE => {
-				let res = self.bus.memory.read(self.registers.PC + 1) as u16;
+				let res = self.memory.read(self.registers.PC + 1) as u16;
 				debug!("Fetched immediate address: {:#X}", res);
 				res
 			}
@@ -523,7 +526,7 @@ impl CPU {
 
 	/// Reads zero-page address stored in ROM at the current PC.
 	fn read_instruction_zero_page_address(&self) -> u8 {
-		self.bus.memory.read(self.registers.PC + 1)
+		self.memory.read(self.registers.PC + 1)
 	}
 
 	/// Returns address stored in memory, from the absolute address in ROM, at the current PC.
@@ -567,8 +570,8 @@ impl CPU {
 
 	/// Read 2 bytes from memory that represent an address
 	fn read_address_from_memory(&self, addr: u16) -> u16 {
-		let lsb = self.bus.memory.read(addr) as u16;
-		let msb = self.bus.memory.read(addr + 1) as u16;
+		let lsb = self.memory.read(addr) as u16;
+		let msb = self.memory.read(addr + 1) as u16;
 		(msb << 8) | lsb
 	}
 
@@ -587,8 +590,9 @@ mod tests {
 		let rom: ROM = ROM {
 			rom: rom_memory.to_vec()
 		};
-		let bus = Box::new(Bus::new(rom));
-		let cpu = CPU::new(bus);
+		let mut bus = Box::new(Bus::new(rom));
+		bus.map_prg_rom();
+		let cpu = CPU::new(bus.memory);
 
 		cpu
 	}
@@ -602,11 +606,11 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x8C);
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x1FF), 0x8C);
+		assert_eq!(cpu.memory.read(0x1FF), 0x8C);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xAB);
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x1FE), 0xAB);
+		assert_eq!(cpu.memory.read(0x1FE), 0xAB);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xAB);
 		cpu.clock_tick();
@@ -687,13 +691,13 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 
-		assert_eq!(cpu.bus.memory.read(0x2000), 0);
+		assert_eq!(cpu.memory.read(0x2000), 0);
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x2000), 0xAB);
+		assert_eq!(cpu.memory.read(0x2000), 0xAB);
 
-		assert_eq!(cpu.bus.memory.read(0x2001), 0);
+		assert_eq!(cpu.memory.read(0x2001), 0);
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x2001), 0xAB);
+		assert_eq!(cpu.memory.read(0x2001), 0xAB);
 	}
 
 	#[test]
@@ -722,14 +726,14 @@ mod tests {
 		assert_eq!(cpu.registers.X, 0xFE);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x0A), 0xFE);
+		assert_eq!(cpu.memory.read(0x0A), 0xFE);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x0A), 0xFF);
+		assert_eq!(cpu.memory.read(0x0A), 0xFF);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
-		assert_eq!(cpu.bus.memory.read(0x0A), 0x00);
+		assert_eq!(cpu.memory.read(0x0A), 0x00);
 
 		cpu.clock_tick();
 	}
@@ -744,7 +748,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x0A), 0xFE);
+		assert_eq!(cpu.memory.read(0x0A), 0xFE);
 		assert_ne!(cpu.registers.A, 0xFE);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFE);
@@ -764,7 +768,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0xABCD), 0x0A);
+		assert_eq!(cpu.memory.read(0xABCD), 0x0A);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.Y, 0x0A);
@@ -783,7 +787,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
+		assert_eq!(cpu.memory.read(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
 
 		assert_ne!(cpu.registers.PC, 0x0001);
 		cpu.clock_tick();
@@ -801,11 +805,11 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x00AB), 0x05);
+		assert_eq!(cpu.memory.read(0x00AB), 0x05);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x00AC), 0xFF);
+		assert_eq!(cpu.memory.read(0x00AC), 0xFF);
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.PC, 0xFF05);
@@ -905,7 +909,7 @@ mod tests {
 		
 
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x20AB), 0xFF);
+		assert_eq!(cpu.memory.read(0x20AB), 0xFF);
 
 		cpu.clock_tick();
 	}
@@ -992,12 +996,12 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.bus.memory.read(0x2000), 0x80);
+		assert_eq!(cpu.memory.read(0x2000), 0x80);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.bus.memory.read(0x2000), 0x00);
+		assert_eq!(cpu.memory.read(0x2000), 0x00);
 
 		cpu.clock_tick();
 	}
