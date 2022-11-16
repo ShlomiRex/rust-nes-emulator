@@ -7,7 +7,8 @@ pub type Memory = [u8; 32_768];
 /// Addressable memory (64kb). Includes zero page, CPU ram, PPU registers, Cartidge memory, basically all available addressable memory.
 pub struct MemoryBus {
 	memory: Memory,
-	rom: ROM
+	rom: ROM,
+	rom_start: u16 			// ROM can be 16kb, which means, we need to align it to the last bytes of addressable memory.
 }
 
 pub struct ROM {
@@ -49,9 +50,14 @@ fn get_memory_map(addr: u16) -> MemoryMap {
 
 impl MemoryBus {
 	pub fn new(memory: Memory, rom: ROM) -> Self {
+		let mut rom_start = 0x8000;
+		if rom.rom.len() == 1024 * 16 {
+			rom_start = 0x8000 + 0x4000;
+		}
 		MemoryBus {
 			memory,
-			rom
+			rom,
+			rom_start
 		}
 	}
 
@@ -83,7 +89,7 @@ impl MemoryBus {
 		if addr < 0x8000 {
 			self.memory[addr as usize]
 		} else {
-			self.rom.read(addr - 0x8000)
+			self.rom.read(addr - self.rom_start)
 		}
 	}
 }

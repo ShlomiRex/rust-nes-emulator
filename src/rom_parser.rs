@@ -62,7 +62,7 @@ impl RomParser {
 		let prg_rom_size_bytes: usize = 1024 * 16 * self.header.prg_rom_size as usize;
 		let prg_rom = &contents[16..16 + prg_rom_size_bytes];
 		debug!("PRG ROM bytes: {}", prg_rom.len());
-		assert_eq!(prg_rom.len(), 1024 * 32, "The emulator, currently, supports PRG ROM of size 32KB.");
+		//assert_eq!(prg_rom.len(), 1024 * 32, "The emulator, currently, supports PRG ROM of size 32KB.");
 		debug!("First 16 bytes of PRG ROM: {:X?}", &prg_rom[0..16]);
 		debug!("Last 16 bytes of PRG ROM: {:X?}", &prg_rom[prg_rom.len()-16..]);  // This contains interrupt vectors
 		self.prg_rom = prg_rom.to_vec();
