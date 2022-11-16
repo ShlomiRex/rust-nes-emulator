@@ -303,6 +303,24 @@ pub fn load_program_bit(rom: &mut [u8;65_536]) -> u8 {
 	10
 }
 
+pub fn load_program_bcc(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	clc
+	nop
+	bcc test
+	nop
+
+	test:
+		sec
+		bcc success
+		nop
+
+	success:
+		nop
+	*/
+	write_rom(rom, "18 ea 90 01 ea 38 90 01 ea ea");
+	8
+}
 
 // pub fn load_program_page_crossed(rom: &mut [u8;65_536]) -> u8 {
 // 	// Page cross = 

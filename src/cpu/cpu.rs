@@ -376,8 +376,10 @@ impl CPU {
 				// Branch on Carry Clear
 				// branch on C = 0
 
-				let new_pc = self.read_instruction_relative_address();
-				self.registers.PC = new_pc;
+				if self.registers.P.get(ProcessorStatusRegisterBits::CARRY) == false {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
 			}
 			Instructions::BIT => {
 				// Test Bits in Memory with Accumulator
@@ -394,6 +396,15 @@ impl CPU {
 				self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, bit7);
 				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, bit6);
 				self.registers.P.modify_z(result);
+			}
+			Instructions::BPL => {
+				// Branch on Result Plus
+				// branch on N = 0
+
+				if self.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE) == false {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
 			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
@@ -1048,20 +1059,25 @@ mod tests {
 
 	#[test]
 	fn test_bcc() {
-		SimpleLogger::new().init().unwrap();
+		let mut cpu = initialize(load_program_bcc);
 
-		let mut cpu = initialize_from_nes_rom("bcc");
-		let pc_before_bcc = cpu.registers.PC;
 		cpu.clock_tick(); // CLC
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
 		cpu.clock_tick(); // NOP
+		let mut pc_before_bcc = cpu.registers.PC;
 		cpu.clock_tick(); // BCC test
+		let mut pc_after_bcc = cpu.registers.PC;
+		assert!(pc_after_bcc - pc_before_bcc == 3);
+
 		cpu.clock_tick(); // SEC
 		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
-		cpu.clock_tick(); // NOP
+		pc_before_bcc = cpu.registers.PC;
+		println!("{}", cpu.registers.PC);
+		cpu.clock_tick(); // BCC success
+		pc_after_bcc = cpu.registers.PC;
+		println!("{}", cpu.registers.PC);
+		assert!(pc_after_bcc - pc_before_bcc == 2);
 
-		let pc_after_bcc = cpu.registers.PC;
-		assert_eq!(pc_before_bcc, pc_after_bcc);
+		cpu.clock_tick(); // NOP (of success)
 	}
 
 	#[test]
@@ -1096,6 +1112,14 @@ mod tests {
 		cpu.clock_tick();
 	}
 
+	#[test]
+	fn test_bpl() {
+		let mut cpu = initialize(load_program_bit);
+
+
+	}
+
+	
 
 	// fn test_page_crossed() {
 	// 	let mut cpu = initialize();
