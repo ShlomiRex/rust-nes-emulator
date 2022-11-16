@@ -22,29 +22,22 @@ enum MemoryMap {
 	STACK,				// 0x0100 - 0x01FF
 	RAM, 				// 0x0200 - 0x07FF
 	Mirrors0000_07FF, 	// 0x0800 - 0x1FFF
-	MappedIO,			// 0x2000 - 0x4020
+	MappedIO,			// 0x2000 - 0x401F
 	ExpansionROM, 		// 0x4020 - 0x5FFF
 	SRAM, 				// 0x6000 - 0x7FFF
 	PrgRom,  			// 0x8000 - 0xFFFF
 }
 
 fn get_memory_map(addr: u16) -> MemoryMap {
-	if addr <= 0x00FF {
-		MemoryMap::ZEROPAGE
-	} else if addr >= 0x0100 && addr < 0x0200 {
-		MemoryMap::STACK
-	} else if addr >= 0x0200 && addr < 0x0800 {
-		MemoryMap::RAM
-	} else if addr >= 0x0800 && addr < 0x2000{
-		MemoryMap::Mirrors0000_07FF
-	} else if addr >= 0x2000 && addr < 0x4020 {
-		MemoryMap::MappedIO
-	} else if addr >= 0x4020 && addr < 0x6000 {
-		MemoryMap::ExpansionROM
-	} else if addr >= 0x6000 && addr < 0x5FFF {
-		MemoryMap::SRAM
-	} else {
-		MemoryMap::PrgRom
+	match addr {
+		0x0000..=0x00FF => MemoryMap::ZEROPAGE,
+		0x0100..=0x01FF => MemoryMap::STACK,
+		0x0200..=0x07FF => MemoryMap::RAM,
+		0x0800..=0x1FFF => MemoryMap::Mirrors0000_07FF,
+		0x2000..=0x401F => MemoryMap::MappedIO,
+		0x4020..=0x5FFF => MemoryMap::ExpansionROM,
+		0x6000..=0x7FFF => MemoryMap::SRAM,
+		_ => MemoryMap::PrgRom
 	}
 }
 
