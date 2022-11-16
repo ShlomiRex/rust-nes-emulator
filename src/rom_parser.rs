@@ -30,7 +30,7 @@ impl RomParser {
 	}
 
 	pub fn parse(&mut self, path: &str) {
-		debug!("Parsing ROM: {}", path);
+		info!("Parsing ROM: {}", path);
 		let contents = fs::read(path).expect("Could not read NES ROM");
 
 		self.parse_header(&contents);

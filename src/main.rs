@@ -14,8 +14,9 @@ use rom_parser::RomParser;
 fn main() {
 	SimpleLogger::new().init().unwrap();
 
-	let path = "6502asm_programs/nestest.nes";
+	//let path = "6502asm_programs/nestest.nes";
 	//let path = "6502asm_programs/minimal.nes";
+	let path = "6502asm_programs/greenscreen.nes";
 	let mut rom_parser = RomParser::new();
 	rom_parser.parse(path);
 	let prg_rom = rom_parser.prg_rom;

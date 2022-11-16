@@ -53,23 +53,12 @@ impl MemoryBus {
 			rom_start
 		}
 	}
-
-	fn debug_write(&self, addr: u16, data: u8) {
-		let map = get_memory_map(addr);
-		debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
-	}
-
-	fn debug_read(&self, addr: u16) {
-		let map = get_memory_map(addr);
-		if map != MemoryMap::PrgRom {
-			debug!("Reading from {:?}, address: {:#X}", map, addr);
-		}
-	}
 	
 	/// Write a single byte to memory.
 	pub fn write(&mut self, addr: u16, data: u8) {
-		self.debug_write(addr, data);
 		if addr < 0x8000 {
+			let map = get_memory_map(addr);
+			debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
 			self.memory[addr as usize] = data;
 		} else {
 			panic!("Cannot write to memory location: {}, its read only!", addr);
@@ -78,8 +67,9 @@ impl MemoryBus {
 
 	/// Read a single byte from memory.
 	pub fn read(&self, addr: u16) -> u8 {
-		self.debug_read(addr);
 		if addr < 0x8000 {
+			let map = get_memory_map(addr);
+			debug!("Reading from {:?}, address: {:#X}", map, addr);
 			self.memory[addr as usize]
 		} else {
 			self.rom.read(addr - self.rom_start)

@@ -5,10 +5,15 @@
 	.byte 0    		; CHR ROM size in 8k chunks. "0" means no ROM, use RAM
 
 .segment "CODE"
+test:
+	sec
+	bcc reset
+	nop
+
 	reset:
 		clc
 		nop
-		bcc reset
+		bcc test
 	nmi:
 		rti
 

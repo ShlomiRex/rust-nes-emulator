@@ -283,6 +283,27 @@ pub fn load_program_asl(rom: &mut [u8;65_536]) -> u8 {
 	15
 }
 
+pub fn load_program_bit(rom: &mut [u8;65_536]) -> u8 {
+	/*
+	LDX #$7f
+	STX $44
+	BIT $44
+
+	LDX #$88
+	STX $45
+	BIT $45
+
+	LDA #$FF
+	BIT $44
+	BIT $45
+
+	NOP
+	*/
+	write_rom(rom, "a2 7f 86 44 24 44 a2 88 86 45 24 45 a9 ff 24 44 24 45 ea");
+	10
+}
+
+
 // pub fn load_program_page_crossed(rom: &mut [u8;65_536]) -> u8 {
 // 	// Page cross = 
 // }

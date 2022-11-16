@@ -45,6 +45,40 @@ impl CPU {
 
 		debug!("{:#X}: {:?}\t{:?}\tBytes: {}, Cycles: {}, Oops cycle: {}", opcode, instr, addrmode, bytes, cycles, oops_cycle);
 
+		self.execute_instruction(&instr, addrmode);
+
+		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
+		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
+		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
+		// We also don't want to change PC if the instruction changes the PC.
+		match instr {
+			Instructions::JMP => (),
+			Instructions::JSR => (),
+			_ => {self.registers.PC += bytes as u16;}
+		}
+
+		self.cycles += cycles as u64;
+
+		match oops_cycle {
+			OopsCycle::NONE => { 
+				// don't change amount of cycles.
+			},
+			OopsCycle::PageBoundryCrossed => { 
+				//TODO: Impliment. For now, I don't change amount of cycles.
+
+				//add 1 to cycles if page boundary is crossed
+			},
+			OopsCycle::BranchOccursOn => {
+				//TODO: Impliment. For now, I don't change amount of cycles.
+
+				//add 1 to cycles if branch occurs on same page
+				//add 2 to cycles if branch occurs to different page
+			}
+		}
+	}
+
+	/// The main brains of the CPU. Execute instruction.
+	fn execute_instruction(&mut self, instr: &Instructions, addrmode: AddressingMode) {
 		//The main brains of the CPU. Execute instruction.
 		match instr {
 			Instructions::LDX => {
@@ -345,37 +379,24 @@ impl CPU {
 				let new_pc = self.read_instruction_relative_address();
 				self.registers.PC = new_pc;
 			}
+			Instructions::BIT => {
+				// Test Bits in Memory with Accumulator
+
+				//bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+				//the zero-flag is set to the result of operand AND accumulator.
+				//A AND M, M7 -> N, M6 -> V
+
+				let fetched_memory = self.fetch_memory(&addrmode);
+				let result = self.registers.A & fetched_memory;
+				let bit7 = (fetched_memory >> 7) == 1;
+				let bit6 = ((fetched_memory >> 6) & 1) == 1;
+				
+				self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, bit7);
+				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, bit6);
+				self.registers.P.modify_z(result);
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
-			}
-		}
-
-		// Increment PC by amount of bytes needed for the instruction, other than opcode (which is 1 byte).
-		// We do this at the end of the execution, because we need to access the PC (for the current instruction) before we increment it.
-		// For example, when we have LDA, we load A with immediate memory at the next byte of PC. So we access PC + 1.
-		// We also don't want to change PC if the instruction changes the PC.
-		match instr {
-			Instructions::JMP => (),
-			Instructions::JSR => (),
-			_ => {self.registers.PC += bytes as u16;}
-		}
-
-		self.cycles += cycles as u64;
-
-		match oops_cycle {
-			OopsCycle::NONE => { 
-				// don't change amount of cycles.
-			},
-			OopsCycle::PageBoundryCrossed => { 
-				//TODO: Impliment. For now, I don't change amount of cycles.
-
-				//add 1 to cycles if page boundary is crossed
-			},
-			OopsCycle::BranchOccursOn => {
-				//TODO: Impliment. For now, I don't change amount of cycles.
-
-				//add 1 to cycles if branch occurs on same page
-				//add 2 to cycles if branch occurs to different page
 			}
 		}
 	}
@@ -576,6 +597,8 @@ impl CPU {
 
 #[cfg(test)]
 mod tests {
+    use simple_logger::SimpleLogger;
+
     use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusRegisterBits, rom_parser::RomParser};
 
     use super::CPU;
@@ -1025,14 +1048,54 @@ mod tests {
 
 	#[test]
 	fn test_bcc() {
+		SimpleLogger::new().init().unwrap();
+
 		let mut cpu = initialize_from_nes_rom("bcc");
 		let pc_before_bcc = cpu.registers.PC;
 		cpu.clock_tick(); // CLC
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
 		cpu.clock_tick(); // NOP
-		cpu.clock_tick(); // BCC reset
+		cpu.clock_tick(); // BCC test
+		cpu.clock_tick(); // SEC
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		cpu.clock_tick(); // NOP
+
 		let pc_after_bcc = cpu.registers.PC;
 		assert_eq!(pc_before_bcc, pc_after_bcc);
 	}
+
+	#[test]
+	fn test_bit() {
+		let mut cpu = initialize(load_program_bit);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+
+		cpu.clock_tick();
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+
+		cpu.clock_tick();
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+
+		cpu.clock_tick();
+	}
+
 
 	// fn test_page_crossed() {
 	// 	let mut cpu = initialize();
