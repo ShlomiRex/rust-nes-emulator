@@ -768,7 +768,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.memory.read(0xABCD), 0x0A);
+		assert_eq!(cpu.memory.read(0x2000), 0x0A);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.Y, 0x0A);
