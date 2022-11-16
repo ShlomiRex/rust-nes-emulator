@@ -1,6 +1,6 @@
 //#![feature(mixed_integer_ops)]  // stable since 1.67.0-nightly
 mod cpu;
-mod bus;
+//mod bus;
 mod memory;
 pub mod program_loader;
 //mod ppu;
@@ -8,8 +8,8 @@ mod render;
 mod rom_parser;
 
 use log::debug;
-use bus::Bus;
-use memory::ROM;
+//use bus::Bus;
+use memory::{ROM, Memory, MemoryBus};
 use cpu::cpu::CPU;
 // use program_loader::*;
 use simple_logger::SimpleLogger;
@@ -46,10 +46,11 @@ fn main() {
 	let rom: ROM = ROM {
 		rom: prg_rom
 	};
-	let mut bus = Box::new(Bus::new(rom));
-	bus.map_prg_rom();
 
-	let mut cpu = CPU::new(bus.memory);
+	let memory: Memory = [0; 32768];
+	let memory_bus = MemoryBus::new(memory, rom);
+	let mut cpu = CPU::new(memory_bus);
+
 	cpu.clock_tick();
 	cpu.clock_tick();
 	cpu.clock_tick();

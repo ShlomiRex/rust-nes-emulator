@@ -3,7 +3,6 @@ use log::{debug, error, warn};
 
 use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
-use crate::bus::Bus;
 use crate::memory::MemoryBus;
 
 use hex::FromHex;
@@ -579,7 +578,7 @@ impl CPU {
 
 #[cfg(test)]
 mod tests {
-    use crate::{bus::Bus, program_loader::*, memory::ROM, cpu::registers::ProcessorStatusRegisterBits};
+    use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusRegisterBits};
 
     use super::CPU;
 
@@ -590,9 +589,10 @@ mod tests {
 		let rom: ROM = ROM {
 			rom: rom_memory.to_vec()
 		};
-		let mut bus = Box::new(Bus::new(rom));
-		bus.map_prg_rom(); 
-		let mut cpu = CPU::new(bus.memory);
+		
+		let memory: Memory = [0; 32768];
+		let memory_bus: MemoryBus = MemoryBus::new(memory, rom);
+		let mut cpu = CPU::new(memory_bus);
 		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
 		cpu
 	}
@@ -602,7 +602,7 @@ mod tests {
 	#[test]
 	fn test_stack() {
 		let mut cpu = initialize(load_program_stack);
-
+		
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x8C);
 		cpu.clock_tick();

@@ -2,9 +2,12 @@ extern crate hex;
 
 use log::debug;
 
+pub type Memory = [u8; 32_768];
+
 /// Addressable memory (64kb). Includes zero page, CPU ram, PPU registers, Cartidge memory, basically all available addressable memory.
 pub struct MemoryBus {
-	pub memory: Box<[u8; 65_536]>
+	memory: Memory,
+	rom: ROM
 }
 
 pub struct ROM {
@@ -45,8 +48,11 @@ fn get_memory_map(addr: u16) -> MemoryMap {
 }
 
 impl MemoryBus {
-	pub fn new() -> Self {
-		MemoryBus { memory: Box::new([0; 65536]) }
+	pub fn new(memory: Memory, rom: ROM) -> Self {
+		MemoryBus {
+			memory,
+			rom
+		}
 	}
 
 	fn debug_write(&self, addr: u16, data: u8) {
@@ -64,13 +70,21 @@ impl MemoryBus {
 	/// Write a single byte to memory.
 	pub fn write(&mut self, addr: u16, data: u8) {
 		self.debug_write(addr, data);
-		self.memory[addr as usize] = data;
+		if addr < 0x8000 {
+			self.memory[addr as usize] = data;
+		} else {
+			panic!("Cannot write to memory location: {}, its read only!", addr);
+		}
 	}
 
 	/// Read a single byte from memory.
 	pub fn read(&self, addr: u16) -> u8 {
 		self.debug_read(addr);
-		self.memory[addr as usize]
+		if addr < 0x8000 {
+			self.memory[addr as usize]
+		} else {
+			self.rom.read(addr - 0x8000)
+		}
 	}
 }
 
@@ -89,23 +103,4 @@ pub fn write_rom(rom_memory: &mut [u8;65_536], dump: &str) {
 		rom_memory[i] = z[0];
 		i += 1;
 	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-    #[test]
-    fn test_ram() {
-		let mut ram: MemoryBus = MemoryBus { memory: Box::new([0; 65536]) };
-		let addr: u16 = 0x1234;
-		ram.write(addr, 0xAB);
-		ram.write(addr + 1, 0xCD);
-
-		assert!(ram.read(0) == 0);
-		assert!(ram.read(addr - 1) == 0x00);
-		assert!(ram.read(addr    ) == 0xAB);
-		assert!(ram.read(addr + 1) == 0xCD);
-		assert!(ram.read(addr + 2) == 0x00);
-    }
 }
