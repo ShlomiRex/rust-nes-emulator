@@ -5,6 +5,7 @@ pub mod program_loader;
 mod render;
 mod rom_parser;
 
+use log::info;
 use memory::{ROM, Memory, MemoryBus};
 use cpu::cpu::CPU;
 use simple_logger::SimpleLogger;
@@ -27,12 +28,10 @@ fn main() {
 	let memory_bus = MemoryBus::new(memory, rom);
 	let mut cpu = CPU::new(memory_bus);
 
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	cpu.clock_tick();
-	
-
+	let mut i = 1;
+	loop {
+		info!("Assembly line: {}", i);
+		cpu.clock_tick();
+		i += 1;
+	};
 }

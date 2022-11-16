@@ -338,6 +338,13 @@ impl CPU {
 				self.registers.P.modify_z(result);
 				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
 			}
+			Instructions::BCC => {
+				// Branch on Carry Clear
+				// branch on C = 0
+
+				let new_pc = self.read_instruction_relative_address();
+				self.registers.PC = new_pc;
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
@@ -373,22 +380,6 @@ impl CPU {
 		}
 	}
 
-	// /// Relative addressing is PC + offset.
-	// /// The offset is the next byte after opcode.
-	// /// So we fetch the next byte (after opcode) and add it with PC.
-	// /// IMPORTANT: The offset is SIGNED. Which means, the offset can be -128 to 127.
-	// fn fetch_relative(&self) -> u16 {
-	// 	let pc = self.registers.PC;
-	// 	let offset = self.rom.read(self.registers.PC + 1) as i8;
-	// 	// Here we need a way to add 'u16' type with 'i8' type.
-	// 	// IMPORTANT NOTE: We need the "mixed_integer_ops" feature, which is in nightly rust.
-	// 	// Its very complex to do this manually, without this feature. So what the hell.
-	// 	let res = pc.wrapping_add_signed(offset as i16);
-	// 	debug!("Fetched relative: {}", res);
-	// 	res
-	// }
-
-	// TODO: Complete after creating PPU.
 	/// Reset interrupt. Address: $0xFFFC, $0xFFFD
 	fn res_interrupt(&mut self) {
 		debug!("Reset interrupt called");
@@ -574,11 +565,18 @@ impl CPU {
 		(msb << 8) | lsb
 	}
 
+	/// Calculate PC after applying relative offset. The offset is represented as signed integer.
+	fn read_instruction_relative_address(&self) -> u16 {
+		let offset = self.memory.read(self.registers.PC + 1);
+		debug!("Relative offset: {:}", (offset as i8) as i16);
+		self.registers.PC.wrapping_add_signed((offset as i8) as i16)
+	}
+
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusRegisterBits};
+    use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusRegisterBits, rom_parser::RomParser};
 
     use super::CPU;
 
@@ -594,6 +592,25 @@ mod tests {
 		let memory_bus: MemoryBus = MemoryBus::new(memory, rom);
 		let mut cpu = CPU::new(memory_bus);
 		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
+		cpu
+	}
+
+	fn initialize_from_nes_rom(test_name: &str) -> CPU {
+		let mut path: String = String::from("6502asm_programs/tests/");
+		path += test_name;
+		path += ".nes";
+
+		let mut rom_parser = RomParser::new();
+		rom_parser.parse(path.as_str());
+		let prg_rom = rom_parser.prg_rom;
+		
+		let rom: ROM = ROM {
+			rom: prg_rom
+		};
+	
+		let memory: Memory = [0; 32768];
+		let memory_bus = MemoryBus::new(memory, rom);
+		let cpu = CPU::new(memory_bus);
 		cpu
 	}
 
@@ -1004,6 +1021,17 @@ mod tests {
 		assert_eq!(cpu.memory.read(0x2000), 0x00);
 
 		cpu.clock_tick();
+	}
+
+	#[test]
+	fn test_bcc() {
+		let mut cpu = initialize_from_nes_rom("bcc");
+		let pc_before_bcc = cpu.registers.PC;
+		cpu.clock_tick(); // CLC
+		cpu.clock_tick(); // NOP
+		cpu.clock_tick(); // BCC reset
+		let pc_after_bcc = cpu.registers.PC;
+		assert_eq!(pc_before_bcc, pc_after_bcc);
 	}
 
 	// fn test_page_crossed() {
