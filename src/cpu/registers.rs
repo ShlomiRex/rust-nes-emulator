@@ -1,5 +1,4 @@
 use std::fmt;
-use ProcessorStatusRegisterBits::*;
 
 /// # CPU Registers
 /// (Chip: 6502), wikipedia: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
@@ -35,6 +34,7 @@ impl fmt::Display for Registers {
 /// | 0 | C | Carry |
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
+#[repr(u8)]
 pub enum ProcessorStatusRegisterBits {
 	CARRY,
 	ZERO,
@@ -44,22 +44,6 @@ pub enum ProcessorStatusRegisterBits {
 	UNUSED,		// By the datasheet it looks like its always 1.
 	OVERFLOW,
 	NEGATIVE
-}
-
-// TODO: Maybe I can give the enum a constant value, so I don't need to ask if-questions. But for now I don't care about that.
-impl ProcessorStatusRegisterBits {
-	fn value(&self) -> usize {
-		match *self {
-			CARRY 				=> 0,
-			ZERO 				=> 1,
-			INTERRUPT_DISABLE 	=> 2,
-			DECIMAL 			=> 3,
-			BREAK 				=> 4,
-			UNUSED 				=> 5,
-			OVERFLOW 			=> 6,
-			NEGATIVE 			=> 7
-		}
-	}
 }
 
 pub struct ProcessorStatusRegister {
@@ -75,7 +59,7 @@ impl Default for ProcessorStatusRegister {
 
 impl ProcessorStatusRegister {
 	pub fn set(&mut self, bit: ProcessorStatusRegisterBits, value: bool) {
-		let index = bit.value();
+		let index = bit as u8;
 		if value {
 			self.flags |= 1 << index;
 		} else {
@@ -84,7 +68,7 @@ impl ProcessorStatusRegister {
 	}
 
 	pub fn get(&self, bit: ProcessorStatusRegisterBits) -> bool {
-		let index = bit.value();
+		let index = bit as u8;
 		self.flags & (1 << index) != 0
 	}
 
@@ -110,6 +94,7 @@ impl fmt::Display for ProcessorStatusRegister {
 #[cfg(test)]
 mod tests {
     use super::*;
+	use ProcessorStatusRegisterBits::*;
 
     #[test]
     fn processor_status_register_test() {
