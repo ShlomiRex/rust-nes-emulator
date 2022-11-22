@@ -9,7 +9,7 @@ pub struct Registers {
 	pub A: u8, 							//accumulator
 	pub X: u8, 							//index register
 	pub Y: u8, 							//index register
-	pub P: ProcessorStatusRegister, 	//processor status flag bits
+	pub P: ProcessorStatus, 	//processor status flag bits
 	pub S: u8, 							//stack pointer
 	pub PC: u16, 						//program counter
 }
@@ -36,7 +36,7 @@ impl fmt::Display for Registers {
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[repr(u8)]
-pub enum ProcessorStatusRegisterBits {
+pub enum ProcessorStatusBits {
 	CARRY,
 	ZERO,
 	INTERRUPT_DISABLE,
@@ -47,40 +47,40 @@ pub enum ProcessorStatusRegisterBits {
 	NEGATIVE
 }
 
-pub struct ProcessorStatusRegister {
+pub struct ProcessorStatus {
 	flags: u8
 }
 
-impl Default for ProcessorStatusRegister {
+impl Default for ProcessorStatus {
     fn default() -> Self {
 		// Set 'UNUSED' flag to 1. Its the standard.
         Self { flags: 0b0010_0000 }
     }
 }
 
-impl ProcessorStatusRegister {
-	pub fn set(&mut self, bit: ProcessorStatusRegisterBits, value: bool) {
+impl ProcessorStatus {
+	pub fn set(&mut self, bit: ProcessorStatusBits, value: bool) {
 		bits::set(&mut self.flags, bit as u8, value);
 	}
 
-	pub fn get(&self, bit: ProcessorStatusRegisterBits) -> bool {
+	pub fn get(&self, bit: ProcessorStatusBits) -> bool {
 		bits::get(self.flags, bit as u8)
 	}
 
 	/// Sets the N bitflag, depending on arithmetic result. Its common for all the instructions.
 	pub fn modify_n(&mut self, value: u8) {
 		// If last bit (7) is 1, its negative
-		self.set(ProcessorStatusRegisterBits::NEGATIVE, (value >> 7) == 1);
+		self.set(ProcessorStatusBits::NEGATIVE, (value >> 7) == 1);
 	}
 
 	/// Sets the Z bitflag, depending on arithmetic result. Its common for all the instructions.
 	pub fn modify_z(&mut self, value: u8) {
 		// If value is 0, zero flag is 1
-		self.set(ProcessorStatusRegisterBits::ZERO, value == 0); 
+		self.set(ProcessorStatusBits::ZERO, value == 0); 
 	}
 }
 
-impl fmt::Display for ProcessorStatusRegister {
+impl fmt::Display for ProcessorStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NV-BDIZC {:08b}", self.flags)
     }
@@ -89,7 +89,7 @@ impl fmt::Display for ProcessorStatusRegister {
 #[cfg(test)]
 mod tests {
     use super::*;
-	use ProcessorStatusRegisterBits::*;
+	use ProcessorStatusBits::*;
 
     #[test]
     fn processor_status_register_test() {
@@ -111,7 +111,7 @@ mod tests {
 	#[test]
 	fn p_register_format_test() {
 		// I had trouble with format. But someone helped me: https://www.reddit.com/r/learnrust/comments/ypyquy/format_u8_to_display_binary_without_0b_and_with/
-		let mut p = ProcessorStatusRegister { flags: 0 };
+		let mut p = ProcessorStatus { flags: 0 };
 
 		p.flags = 0b1100_0110;
 		assert_eq!(format!("{p}"), "NV-BDIZC 11000110");

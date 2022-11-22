@@ -1,7 +1,7 @@
 use core::panic;
 use log::{debug, error, warn};
 
-use crate::cpu::registers::{Registers, ProcessorStatusRegisterBits};
+use crate::cpu::registers::{Registers, ProcessorStatusBits};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::memory::MemoryBus;
 
@@ -127,31 +127,31 @@ impl CPU {
 			}
 			Instructions::SEC => {
 				// Set Carry Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, true);
+				self.registers.P.set(ProcessorStatusBits::CARRY, true);
 			}
 			Instructions::CLC => {
 				// Clear Carry Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, false);
+				self.registers.P.set(ProcessorStatusBits::CARRY, false);
 			}
 			Instructions::SED => {
 				// Set Decimal Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, true);
+				self.registers.P.set(ProcessorStatusBits::DECIMAL, true);
 			}
 			Instructions::CLD => {
 				// Clear Decimal Mode
-				self.registers.P.set(ProcessorStatusRegisterBits::DECIMAL, false);
+				self.registers.P.set(ProcessorStatusBits::DECIMAL, false);
 			}
 			Instructions::SEI => {
 				// Set Interrupt Disable Status
-				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, true);
+				self.registers.P.set(ProcessorStatusBits::INTERRUPT_DISABLE, true);
 			}
 			Instructions::CLI => {
 				// Clear Interrupt Disable Bit
-				self.registers.P.set(ProcessorStatusRegisterBits::INTERRUPT_DISABLE, false);
+				self.registers.P.set(ProcessorStatusBits::INTERRUPT_DISABLE, false);
 			}
 			Instructions::CLV => {
 				// Clear Overflow Flag
-				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, false);
+				self.registers.P.set(ProcessorStatusBits::OVERFLOW, false);
 			}
 			Instructions::ADC => {
 				// Add Memory to Accumulator with Carry
@@ -163,7 +163,7 @@ impl CPU {
 
 				let a = self.registers.A;
 				let m = fetched_memory;
-				let carry: u8 = self.registers.P.get(ProcessorStatusRegisterBits::CARRY) as u8;
+				let carry: u8 = self.registers.P.get(ProcessorStatusBits::CARRY) as u8;
 
 				// Carry flag: Only for unsigned. If result is > 255, carry is set.
 				// Overflow flag: Only if (Positive+Positive=Negative) or (Negative+Negative=Positive)
@@ -177,7 +177,7 @@ impl CPU {
 
 				// Check decimal mode, check if CPU is in binary/decimal coded mode
 				// TODO: I read that NES doesn't use this mode. Maybe remove it so I don't have any problems?
-				if self.registers.P.get(ProcessorStatusRegisterBits::DECIMAL) {
+				if self.registers.P.get(ProcessorStatusBits::DECIMAL) {
 					result = self.decimal_mode(result);
 				}
 				self.registers.A = result;
@@ -195,8 +195,8 @@ impl CPU {
 				
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
-				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, new_overflow);
+				self.registers.P.set(ProcessorStatusBits::CARRY, new_carry);
+				self.registers.P.set(ProcessorStatusBits::OVERFLOW, new_overflow);
 			}
 			Instructions::STX => {
 				// Store Index X in Memory
@@ -370,13 +370,13 @@ impl CPU {
 
 				self.registers.P.modify_n(result);
 				self.registers.P.modify_z(result);
-				self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_carry);
+				self.registers.P.set(ProcessorStatusBits::CARRY, new_carry);
 			}
 			Instructions::BCC => {
 				// Branch on Carry Clear
 				// branch on C = 0
 
-				if self.registers.P.get(ProcessorStatusRegisterBits::CARRY) == false {
+				if self.registers.P.get(ProcessorStatusBits::CARRY) == false {
 					let new_pc = self.read_instruction_relative_address();
 					self.registers.PC = new_pc;
 				}
@@ -393,15 +393,15 @@ impl CPU {
 				let bit7 = (fetched_memory >> 7) == 1;
 				let bit6 = ((fetched_memory >> 6) & 1) == 1;
 				
-				self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, bit7);
-				self.registers.P.set(ProcessorStatusRegisterBits::OVERFLOW, bit6);
+				self.registers.P.set(ProcessorStatusBits::NEGATIVE, bit7);
+				self.registers.P.set(ProcessorStatusBits::OVERFLOW, bit6);
 				self.registers.P.modify_z(result);
 			}
 			Instructions::BPL => {
 				// Branch on Result Plus
 				// branch on N = 0
 
-				if self.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE) == false {
+				if self.registers.P.get(ProcessorStatusBits::NEGATIVE) == false {
 					let new_pc = self.read_instruction_relative_address();
 					self.registers.PC = new_pc;
 				}
@@ -585,9 +585,9 @@ impl CPU {
 				(last_bit, false, true)
 			};
 
-		self.registers.P.set(ProcessorStatusRegisterBits::NEGATIVE, new_n);
-		self.registers.P.set(ProcessorStatusRegisterBits::ZERO, new_z);
-		self.registers.P.set(ProcessorStatusRegisterBits::CARRY, new_c);
+		self.registers.P.set(ProcessorStatusBits::NEGATIVE, new_n);
+		self.registers.P.set(ProcessorStatusBits::ZERO, new_z);
+		self.registers.P.set(ProcessorStatusBits::CARRY, new_c);
 	}
 
 	/// Read 2 bytes from memory that represent an address
@@ -610,7 +610,7 @@ impl CPU {
 mod tests {
     use simple_logger::SimpleLogger;
 
-    use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusRegisterBits, rom_parser::RomParser};
+    use crate::{program_loader::*, memory::{ROM, MemoryBus, Memory}, cpu::registers::ProcessorStatusBits, rom_parser::RomParser};
 
     use super::CPU;
 
@@ -678,9 +678,9 @@ mod tests {
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFF);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 		cpu.clock_tick();
 	}
 
@@ -689,46 +689,46 @@ mod tests {
 		let mut cpu = initialize(load_program_adc);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), false);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x09);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x0B);
 		
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), true);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x11);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		assert_eq!(cpu.registers.A, 0x80);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		assert_eq!(cpu.registers.A, 0x7F);
 
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), false);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		assert_eq!(cpu.registers.A, 0x80);
 
 		cpu.clock_tick();
@@ -757,14 +757,14 @@ mod tests {
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.X, 0xFE);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.X, 0xFF);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.X, 0x00);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 
 		cpu.clock_tick();
 	}
@@ -781,9 +781,9 @@ mod tests {
 
 		cpu.clock_tick();
 		assert_eq!(cpu.memory.read(0x0A), 0xFF);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 		assert_eq!(cpu.memory.read(0x0A), 0x00);
 
 		cpu.clock_tick();
@@ -808,7 +808,7 @@ mod tests {
 		assert_eq!(cpu.registers.X, 0x0B);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFC);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 
 		cpu.clock_tick();
 	}
@@ -844,10 +844,10 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.PC, 0x0001);  // PC is at 0x0001
 
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), false);
 		// Execute instruction stored in 0x0001
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::DECIMAL), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), true);
 	}
 
 	#[test]
@@ -872,30 +872,30 @@ mod tests {
 
 		cpu.clock_tick();
 		
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 
 		cpu.clock_tick(); // LDA 0xAA: N=1, Z=C=0
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 
 		cpu.clock_tick(); // LDA 0x00
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 
 		cpu.clock_tick();
 	}
@@ -909,25 +909,25 @@ mod tests {
 		cpu.clock_tick();
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
 
 		cpu.clock_tick();
 	}
@@ -954,7 +954,7 @@ mod tests {
 		let mut cpu = initialize(load_program_absolute_indexed_with_carry);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		
@@ -981,8 +981,8 @@ mod tests {
 		assert_ne!(cpu.registers.X, 0xAA);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x00);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
 		cpu.clock_tick();
 		assert_ne!(cpu.registers.A, 0x00);
 		cpu.clock_tick();
@@ -993,7 +993,7 @@ mod tests {
 		assert_eq!(cpu.registers.A, 0xAA);
 
 		// Run the program without debug and see whats the final flags. Easier than do it after the immediate instruction.
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 
 		cpu.clock_tick();
 	}
@@ -1005,7 +1005,7 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFF);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1013,8 +1013,8 @@ mod tests {
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x00);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 
 		cpu.clock_tick();
 	}
@@ -1029,9 +1029,9 @@ mod tests {
 		assert_eq!(cpu.registers.A, 0x04);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), false);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xF8);
@@ -1041,7 +1041,7 @@ mod tests {
 		assert_eq!(cpu.registers.A, 0x7F);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFE);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFC);
 
@@ -1049,9 +1049,9 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.memory.read(0x2000), 0x80);
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
 		assert_eq!(cpu.memory.read(0x2000), 0x00);
 
 		cpu.clock_tick();
@@ -1069,7 +1069,7 @@ mod tests {
 		assert!(pc_after_bcc - pc_before_bcc == 3);
 
 		cpu.clock_tick(); // SEC
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::CARRY), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		pc_before_bcc = cpu.registers.PC;
 		println!("{}", cpu.registers.PC);
 		cpu.clock_tick(); // BCC success
@@ -1087,27 +1087,27 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::NEGATIVE), true);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::OVERFLOW), false);
-		assert_eq!(cpu.registers.P.get(ProcessorStatusRegisterBits::ZERO), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::OVERFLOW), false);
+		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
 
 		cpu.clock_tick();
 	}
