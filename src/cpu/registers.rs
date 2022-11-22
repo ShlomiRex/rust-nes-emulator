@@ -9,7 +9,7 @@ pub struct Registers {
 	pub A: u8, 							//accumulator
 	pub X: u8, 							//index register
 	pub Y: u8, 							//index register
-	pub P: ProcessorStatus, 	//processor status flag bits
+	pub P: ProcessorStatus, 			//processor status flag bits
 	pub S: u8, 							//stack pointer
 	pub PC: u16, 						//program counter
 }
@@ -33,13 +33,12 @@ impl fmt::Display for Registers {
 /// | 2 | I | Interrupt disable |
 /// | 1 | Z | Zero |
 /// | 0 | C | Carry |
-#[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[repr(u8)]
 pub enum ProcessorStatusBits {
 	CARRY,
 	ZERO,
-	INTERRUPT_DISABLE,
+	InterruptDisable,
 	DECIMAL,
 	BREAK,
 	UNUSED,		// By the datasheet it looks like its always 1.

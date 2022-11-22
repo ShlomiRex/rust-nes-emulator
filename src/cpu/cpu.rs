@@ -143,11 +143,11 @@ impl CPU {
 			}
 			Instructions::SEI => {
 				// Set Interrupt Disable Status
-				self.registers.P.set(ProcessorStatusBits::INTERRUPT_DISABLE, true);
+				self.registers.P.set(ProcessorStatusBits::InterruptDisable, true);
 			}
 			Instructions::CLI => {
 				// Clear Interrupt Disable Bit
-				self.registers.P.set(ProcessorStatusBits::INTERRUPT_DISABLE, false);
+				self.registers.P.set(ProcessorStatusBits::InterruptDisable, false);
 			}
 			Instructions::CLV => {
 				// Clear Overflow Flag

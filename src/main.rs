@@ -5,6 +5,7 @@ pub mod program_loader;
 mod render;
 mod rom_parser;
 mod common;
+mod ppu;
 
 use log::info;
 use memory::{ROM, Memory, MemoryBus};

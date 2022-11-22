@@ -12,9 +12,9 @@ pub struct Registers {
 impl Registers {
     pub fn new() -> Self {
         let r = Registers {
-            ppuctrl: PPUCtrl::new(),
-            ppumask: PPUMask::new(),
-            ppustatus: PPUStatus::new(),
+            ppuctrl: PPUCtrl {flags: 0},
+            ppumask: PPUMask {flags: 0},
+            ppustatus: PPUStatus {flags: 0}
         };
         r
     }

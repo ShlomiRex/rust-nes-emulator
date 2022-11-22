@@ -1,42 +1,41 @@
+use crate::common::bits;
+
 
 pub struct PPUMask {
-    pub register: u8
+    pub flags: u8
+}
+
+/*
+7  bit  0
+---- ----
+BGRs bMmG
+|||| ||||
+|||| |||+- Greyscale (0: normal color, 1: produce a greyscale display)
+|||| ||+-- 1: Show background in leftmost 8 pixels of screen, 0: Hide
+|||| |+--- 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
+|||| +---- 1: Show background
+|||+------ 1: Show sprites
+||+------- Emphasize red (green on PAL/Dendy)
+|+-------- Emphasize green (red on PAL/Dendy)
++--------- Emphasize blue
+*/
+pub enum PPUMaskBits {
+	GRAYSCALE,			// G
+	ShowBackground,		// m
+	M,					// M
+	BACKGROUND,			// b
+	SPRITES,			// s
+	R,					// R
+	G,					// G
+	B					// B
 }
 
 impl PPUMask {
-    pub fn new() -> Self {
-        Self { register: 0 }
-    }
-    
-    pub fn greyscale(&mut self) -> u8 {
-        self.register & 1
-    }
+	pub fn set(&mut self, bit: PPUMaskBits, value: bool) {
+		bits::set(&mut self.flags, bit as u8, value);
+	}
 
-    pub fn show_bg_leftmost_8(&mut self) -> u8 {
-        self.register & (1 << 1)
-    }
-
-    pub fn show_sprites_leftmost_8(&mut self) -> u8 {
-        self.register & (1 << 2)
-    }
-
-    pub fn show_bg(&mut self) -> u8 {
-        self.register & (1 << 3)
-    }
-
-    pub fn show_sprites(&mut self) -> u8 {
-        self.register & (1 << 4)
-    }
-
-    pub fn emphasize_red(&mut self) -> u8 {
-        self.register & (1 << 5)
-    }
-
-    pub fn emphasize_green(&mut self) -> u8 {
-        self.register & (1 << 6)
-    }
-
-    pub fn emphasize_blue(&mut self) -> u8 {
-        self.register & (1 << 7)
-    }
+	pub fn get(&self, bit: PPUMaskBits) -> bool {
+		bits::get(self.flags, bit as u8)
+	}
 }
