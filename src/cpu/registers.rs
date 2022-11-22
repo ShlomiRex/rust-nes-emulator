@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::common::bits;
 
 /// # CPU Registers
 /// (Chip: 6502), wikipedia: https://en.wikipedia.org/wiki/MOS_Technology_6502#Registers
@@ -59,17 +60,11 @@ impl Default for ProcessorStatusRegister {
 
 impl ProcessorStatusRegister {
 	pub fn set(&mut self, bit: ProcessorStatusRegisterBits, value: bool) {
-		let index = bit as u8;
-		if value {
-			self.flags |= 1 << index;
-		} else {
-			self.flags &= !(1 << index);
-		}
+		bits::set(&mut self.flags, bit as u8, value);
 	}
 
 	pub fn get(&self, bit: ProcessorStatusRegisterBits) -> bool {
-		let index = bit as u8;
-		self.flags & (1 << index) != 0
+		bits::get(self.flags, bit as u8)
 	}
 
 	/// Sets the N bitflag, depending on arithmetic result. Its common for all the instructions.
