@@ -406,6 +406,18 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::DEC => {
+				// Decrement Memory by One
+				// M - 1 -> M
+				let fetched_memory = self.fetch_memory(&addrmode);
+				let new_memory = fetched_memory.wrapping_sub(1);
+
+				let addr = self.fetch_instruction_address(addrmode);
+				self.memory.write(addr, new_memory);
+
+				self.registers.P.modify_n(new_memory);
+				self.registers.P.modify_z(new_memory);
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
