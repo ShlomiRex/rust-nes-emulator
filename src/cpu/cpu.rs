@@ -390,6 +390,15 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::BEQ => {
+				// Branch on Result Zero
+				// branch on Z = 1
+
+				if self.registers.P.get(ProcessorStatusBits::ZERO) == true {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
+			}
 			Instructions::BIT => {
 				// Test Bits in Memory with Accumulator
 
