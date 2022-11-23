@@ -513,12 +513,24 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.Y);
 				self.registers.P.modify_z(self.registers.Y);
 			}
-			Instructions::EOR => {
-				// Exclusive-OR Memory with Accumulator
-				// A EOR M -> A
+			Instructions::EOR | Instructions::ORA => {
+				/*
+				EOR:
+				Exclusive-OR Memory with Accumulator
+				A EOR M -> A
+
+				ORA:
+				OR Memory with Accumulator
+				A OR M -> A
+				*/
 
 				let fetched_memory = self.fetch_memory(&addrmode);
-				let new_a = self.registers.A ^ fetched_memory;
+				let new_a = if *instr == Instructions::EOR {
+					self.registers.A ^ fetched_memory
+				} else {
+					// ORA
+					self.registers.A | fetched_memory
+				};
 				self.registers.A = new_a;
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
