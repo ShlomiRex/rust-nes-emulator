@@ -381,6 +381,15 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::BCS => {
+				// Branch on Carry Set
+				// branch on C = 1
+
+				if self.registers.P.get(ProcessorStatusBits::CARRY) == true {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
+			}
 			Instructions::BIT => {
 				// Test Bits in Memory with Accumulator
 
