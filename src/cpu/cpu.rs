@@ -415,6 +415,15 @@ impl CPU {
 				self.registers.P.set(ProcessorStatusBits::OVERFLOW, bit6);
 				self.registers.P.modify_z(result);
 			}
+			Instructions::BMI => {
+				// Branch on Result Minus
+				// branch on N = 1
+
+				if self.registers.P.get(ProcessorStatusBits::NEGATIVE) == true {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
+			}
 			Instructions::BPL => {
 				// Branch on Result Plus
 				// branch on N = 0
