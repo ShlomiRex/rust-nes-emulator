@@ -396,33 +396,6 @@ impl CPU {
 				self.registers.P.modify_z(result);
 				self.registers.P.set(ProcessorStatusBits::CARRY, new_carry);
 			}
-			Instructions::BCC => {
-				// Branch on Carry Clear
-				// branch on C = 0
-
-				if self.registers.P.get(ProcessorStatusBits::CARRY) == false {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
-			Instructions::BCS => {
-				// Branch on Carry Set
-				// branch on C = 1
-
-				if self.registers.P.get(ProcessorStatusBits::CARRY) == true {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
-			Instructions::BEQ => {
-				// Branch on Result Zero
-				// branch on Z = 1
-
-				if self.registers.P.get(ProcessorStatusBits::ZERO) == true {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
 			Instructions::BIT => {
 				// Test Bits in Memory with Accumulator
 
@@ -439,29 +412,59 @@ impl CPU {
 				self.registers.P.set(ProcessorStatusBits::OVERFLOW, bit6);
 				self.registers.P.modify_z(result);
 			}
-			Instructions::BMI => {
-				// Branch on Result Minus
-				// branch on N = 1
+			Instructions::BMI | 
+			Instructions::BPL | 
+			Instructions::BNE | 
+			Instructions::BVC | 
+			Instructions::BVS |
+			Instructions::BEQ |
+			Instructions::BCS |
+			Instructions::BCC
+			 => {
+				/*
+				BMI:
+				Branch on Result Minus
+				branch on N = 1
 
-				if self.registers.P.get(ProcessorStatusBits::NEGATIVE) == true {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
-			Instructions::BNE => {
-				// Branch on Result not Zero
-				// branch on Z = 0
+				BPL:
+				Branch on Result Plus
+				branch on N = 0
 
-				if self.registers.P.get(ProcessorStatusBits::ZERO) == false {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
-			Instructions::BPL => {
-				// Branch on Result Plus
-				// branch on N = 0
+				BNE:
+				Branch on Result not Zero
+				branch on Z = 0
 
-				if self.registers.P.get(ProcessorStatusBits::NEGATIVE) == false {
+				BVC:
+				Branch on Overflow Clear
+				branch on V = 0
+
+				BVS:
+				Branch on Overflow Set
+				branch on V = 1
+
+				BEQ:
+ 				Branch on Result Zero
+				branch on Z = 1
+
+				BCS:
+				Branch on Carry Set
+				branch on C = 1
+
+				BCC:
+				Branch on Carry Clear
+				branch on C = 0
+				*/
+
+				if 
+					(*instr == Instructions::BMI && self.registers.P.get(ProcessorStatusBits::NEGATIVE		) == true	) || 
+					(*instr == Instructions::BPL && self.registers.P.get(ProcessorStatusBits::NEGATIVE		) == false	) ||
+					(*instr == Instructions::BNE && self.registers.P.get(ProcessorStatusBits::ZERO			) == false	) ||
+					(*instr == Instructions::BVC && self.registers.P.get(ProcessorStatusBits::OVERFLOW		) == false	) ||
+					(*instr == Instructions::BVS && self.registers.P.get(ProcessorStatusBits::OVERFLOW		) == true	) ||
+					(*instr == Instructions::BEQ && self.registers.P.get(ProcessorStatusBits::ZERO			) == true	) ||
+					(*instr == Instructions::BCS && self.registers.P.get(ProcessorStatusBits::CARRY		) == true	) ||
+					(*instr == Instructions::BCC && self.registers.P.get(ProcessorStatusBits::CARRY		) == false	)
+				{
 					let new_pc = self.read_instruction_relative_address();
 					self.registers.PC = new_pc;
 				}
@@ -483,24 +486,6 @@ impl CPU {
 
 				todo!();
 				//self.push_pc(offset);
-			}
-			Instructions::BVC => {
-				// Branch on Overflow Clear
-				// branch on V = 0
-
-				if self.registers.P.get(ProcessorStatusBits::OVERFLOW) == false {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
-			}
-			Instructions::BVS => {
-				// Branch on Overflow Set
-				// branch on V = 1
-
-				if self.registers.P.get(ProcessorStatusBits::OVERFLOW) == true {
-					let new_pc = self.read_instruction_relative_address();
-					self.registers.PC = new_pc;
-				}
 			}
 			Instructions::DEX => {
 				// Decrement Index X by One
