@@ -347,13 +347,27 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
 			}
-			Instructions::ASL => {
-				// Shift Left One Bit (Memory or Accumulator)
-				// C <- [76543210] <- 0
+			Instructions::ASL | Instructions::LSR => {
+				/*
+				ASL:
+				Shift Left One Bit (Memory or Accumulator)
+				C <- [76543210] <- 0
+				*/
+				/*
+				LSR:
+				Shift One Bit Right (Memory or Accumulator)
+				0 -> [76543210] -> C
+				*/
 
 				// Memory can be register.
 				let fetched_memory = self.fetch_memory(&addrmode);
-				let result = fetched_memory << 1;
+
+				let result = if *instr == Instructions::ASL {
+					fetched_memory << 1
+				} else {
+					// LSR
+					fetched_memory >> 1
+				};
 
 				// Determine if shift overflowed (if yes, then set carry)
 				// If last bit is 1, and we left shift, then that bit is the carry.
