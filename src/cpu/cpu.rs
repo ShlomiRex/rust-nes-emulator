@@ -264,10 +264,7 @@ impl CPU {
 				// Push PC onto stack (return address)
 				// NOTE: I push the 3rd byte of the instruction (PC + 2). Why not PC+3 (next instruction)?
 				// Idk, but its important to emulate this exactly, because some games use this feature.
-				let pc_msb = (self.registers.PC.wrapping_add(2) >> 8) as u8;
-				let pc_lsb = (self.registers.PC.wrapping_add(2)) as u8;
-				self.push_stack(pc_msb);
-				self.push_stack(pc_lsb);
+				self.push_pc(2);
 
 				// Jump to the address operand
 				let addr = self.fetch_instruction_address(addrmode);
@@ -708,6 +705,19 @@ impl CPU {
 		let offset = self.memory.read(self.registers.PC + 1);
 		debug!("Relative offset: {:}", (offset as i8) as i16);
 		self.registers.PC.wrapping_add_signed((offset as i8) as i16)
+	}
+
+	/// Push PC onto stack, adding offset to PC.
+	fn push_pc(&mut self, offset: u16) {
+		let pc_msb = (self.registers.PC.wrapping_add(offset) >> 8) as u8;
+		let pc_lsb = (self.registers.PC.wrapping_add(offset)) as u8;
+		self.push_stack(pc_msb); // store high
+		self.push_stack(pc_lsb); // store low
+	}
+
+	/// Push processor status register onto stack
+	fn push_p(&mut self) {
+		self.push_stack(self.registers.P.flags);
 	}
 
 }
