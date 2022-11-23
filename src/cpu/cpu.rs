@@ -230,11 +230,24 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.Y);
 				self.registers.P.modify_z(self.registers.Y);
 			}
-			Instructions::INC => {
-				// Increment Memory by One
-				// M + 1 -> M
+			Instructions::INC | Instructions::DEC => {
+				/*
+				INC:
+				Increment Memory by One
+				M + 1 -> M
+				*/
+				/*
+				DEC:
+				Decrement Memory by One
+				M - 1 -> M
+				*/
 				let fetched_memory = self.fetch_memory(&addrmode);
-				let new_memory = fetched_memory.wrapping_add(1);
+				let new_memory = if *instr == Instructions::INC {
+					fetched_memory.wrapping_add(1)
+				} else {
+					// DEC
+					fetched_memory.wrapping_sub(1)
+				};
 
 				let addr = self.fetch_instruction_address(addrmode);
 				self.memory.write(addr, new_memory);
@@ -453,6 +466,24 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::BRK => {
+				// Force Break
+				/*
+				BRK initiates a software interrupt similar to a hardware
+				interrupt (IRQ). The return address pushed to the stack is
+				PC+2, providing an extra byte of spacing for a break mark
+				(identifying a reason for the break.)
+				The status register will be pushed to the stack with the break
+				flag set to 1. However, when retrieved during RTI or by a PLP
+				instruction, the break flag will be ignored.
+				The interrupt disable flag is not set automatically.
+				*/
+				// interrupt,
+				// push PC+2, push SR
+
+				todo!();
+				//self.push_pc(offset);
+			}
 			Instructions::BVC => {
 				// Branch on Overflow Clear
 				// branch on V = 0
@@ -471,17 +502,6 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
-			Instructions::DEC => {
-				// Decrement Memory by One
-				// M - 1 -> M
-				let fetched_memory = self.fetch_memory(&addrmode);
-				let new_memory = fetched_memory.wrapping_sub(1);
-
-				let addr = self.fetch_instruction_address(addrmode);
-				self.memory.write(addr, new_memory);
-
-				self.registers.P.modify_n(new_memory);
-				self.registers.P.modify_z(new_memory);
 			Instructions::DEX => {
 				// Decrement Index X by One
 				// X - 1 -> X
