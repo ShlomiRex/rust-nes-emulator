@@ -424,6 +424,15 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::BNE => {
+				// Branch on Result not Zero
+				// branch on Z = 0
+
+				if self.registers.P.get(ProcessorStatusBits::ZERO) == false {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
+			}
 			Instructions::BPL => {
 				// Branch on Result Plus
 				// branch on N = 0
