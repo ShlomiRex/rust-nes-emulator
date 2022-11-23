@@ -471,6 +471,14 @@ impl CPU {
 
 				self.registers.P.modify_n(new_memory);
 				self.registers.P.modify_z(new_memory);
+			Instructions::DEX => {
+				// Decrement Index X by One
+				// X - 1 -> X
+
+				self.registers.X = self.registers.X.wrapping_sub(1);
+				self.registers.P.modify_n(self.registers.X);
+				self.registers.P.modify_z(self.registers.X);
+			}
 			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
