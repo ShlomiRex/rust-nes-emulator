@@ -81,29 +81,29 @@ impl CPU {
 	fn execute_instruction(&mut self, instr: &Instructions, addrmode: AddressingMode) {
 		//The main brains of the CPU. Execute instruction.
 		match instr {
-			Instructions::LDX => {
-				// Load Index X with Memory
-				// M -> X
-				let fetched_memory = self.fetch_memory(&addrmode);
-				self.registers.X = fetched_memory;
+			Instructions::LDX | Instructions::LDY | Instructions::LDA => {
+				/*
+				LDX:
+				Load Index X with Memory
+				M -> X
 
-				self.registers.P.modify_n(fetched_memory);
-				self.registers.P.modify_z(fetched_memory);
-			}
-			Instructions::LDY => {
-				// Load Index Y with Memory
-				// M -> Y
-				let fetched_memory = self.fetch_memory(&addrmode);
-				self.registers.Y = fetched_memory;
+				LDY:
+				Load Index Y with Memory
+				M -> Y
 
-				self.registers.P.modify_n(fetched_memory);
-				self.registers.P.modify_z(fetched_memory);
-			}
-			Instructions::LDA => {
-				// Load Accumulator with Memory
-				// M -> A
+				LDA:
+				Load Accumulator with Memory
+				M -> A
+				*/
 				let fetched_memory = self.fetch_memory(&addrmode);
-				self.registers.A = fetched_memory;
+				if *instr == Instructions::LDX {
+					self.registers.X = fetched_memory;
+				} else if *instr == Instructions::LDY {
+					self.registers.Y = fetched_memory;
+				} else {
+					// LDA
+					self.registers.A = fetched_memory;
+				}
 
 				self.registers.P.modify_n(fetched_memory);
 				self.registers.P.modify_z(fetched_memory);
