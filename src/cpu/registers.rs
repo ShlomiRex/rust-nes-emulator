@@ -6,12 +6,12 @@ use crate::common::bits;
 #[derive(Default)]
 #[allow(non_snake_case)]
 pub struct Registers {
-	pub A: u8, 							//accumulator
-	pub X: u8, 							//index register
-	pub Y: u8, 							//index register
-	pub P: ProcessorStatus, 			//processor status flag bits
-	pub S: u8, 							//stack pointer
-	pub PC: u16, 						//program counter
+	pub A: u8,							// accumulator
+	pub X: u8,							// index register
+	pub Y: u8,							// index register
+	pub P: ProcessorStatus,				// processor status flag bits
+	pub S: u8,							// stack pointer
+	pub PC: u16,						// program counter
 }
 
 impl fmt::Display for Registers {
@@ -47,7 +47,7 @@ pub enum ProcessorStatusBits {
 }
 
 pub struct ProcessorStatus {
-	flags: u8
+	pub flags: u8
 }
 
 impl Default for ProcessorStatus {
