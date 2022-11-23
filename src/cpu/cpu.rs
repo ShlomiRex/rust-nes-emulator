@@ -487,6 +487,16 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.Y);
 				self.registers.P.modify_z(self.registers.Y);
 			}
+			Instructions::EOR => {
+				// Exclusive-OR Memory with Accumulator
+				// A EOR M -> A
+
+				let fetched_memory = self.fetch_memory(&addrmode);
+				let new_a = self.registers.A ^ fetched_memory;
+				self.registers.A = new_a;
+				self.registers.P.modify_n(self.registers.A);
+				self.registers.P.modify_z(self.registers.A);
+			}
 			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
