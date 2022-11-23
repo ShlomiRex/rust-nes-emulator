@@ -442,6 +442,15 @@ impl CPU {
 					self.registers.PC = new_pc;
 				}
 			}
+			Instructions::BVC => {
+				// Branch on Overflow Clear
+				// branch on V = 0
+
+				if self.registers.P.get(ProcessorStatusBits::OVERFLOW) == false {
+					let new_pc = self.read_instruction_relative_address();
+					self.registers.PC = new_pc;
+				}
+			}
 			Instructions::DEC => {
 				// Decrement Memory by One
 				// M - 1 -> M
