@@ -81,7 +81,9 @@ impl CPU {
 	fn execute_instruction(&mut self, instr: &Instructions, addrmode: AddressingMode) {
 		//The main brains of the CPU. Execute instruction.
 		match instr {
-			Instructions::LDX | Instructions::LDY | Instructions::LDA => {
+			Instructions::LDX | 
+			Instructions::LDY | 
+			Instructions::LDA => {
 				/*
 				LDX:
 				Load Index X with Memory
@@ -198,23 +200,31 @@ impl CPU {
 				self.registers.P.set(ProcessorStatusBits::CARRY, new_carry);
 				self.registers.P.set(ProcessorStatusBits::OVERFLOW, new_overflow);
 			}
-			Instructions::STX => {
-				// Store Index X in Memory
-				// X -> M
-				let addr = self.fetch_instruction_address(addrmode);
-				self.memory.write(addr, self.registers.X);
-			}
-			Instructions::STY => {
-				// Store Index Y in Memory
-				// Y -> M
-				let addr = self.fetch_instruction_address(addrmode);
-				self.memory.write(addr, self.registers.Y);
-			}
+			Instructions::STX | 
+			Instructions::STY | 
 			Instructions::STA => {
-				// Store Accumulator in Memory
-				// A -> M
+				/*
+				STX:
+				Store Index X in Memory
+				X -> M
+
+				STY:
+				Store Index Y in Memory
+				Y -> M
+
+				STA:
+				Store Accumulator in Memory
+				A -> M
+				*/
 				let addr = self.fetch_instruction_address(addrmode);
-				self.memory.write(addr, self.registers.A);
+				if *instr == Instructions::STX {
+					self.memory.write(addr, self.registers.X);
+				} else if *instr == Instructions::STY {
+					self.memory.write(addr, self.registers.Y);
+				} else {
+					//STA
+					self.memory.write(addr, self.registers.A);
+				}
 			}
 			Instructions::INX => {
 				// Increment Index X by One
