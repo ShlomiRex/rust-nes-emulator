@@ -240,7 +240,8 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.Y);
 				self.registers.P.modify_z(self.registers.Y);
 			}
-			Instructions::INC | Instructions::DEC => {
+			Instructions::INC | 
+			Instructions::DEC => {
 				/*
 				INC:
 				Increment Memory by One
@@ -513,7 +514,8 @@ impl CPU {
 				self.registers.P.modify_n(self.registers.Y);
 				self.registers.P.modify_z(self.registers.Y);
 			}
-			Instructions::EOR | Instructions::ORA => {
+			Instructions::EOR | 
+			Instructions::ORA => {
 				/*
 				EOR:
 				Exclusive-OR Memory with Accumulator
@@ -534,6 +536,21 @@ impl CPU {
 				self.registers.A = new_a;
 				self.registers.P.modify_n(self.registers.A);
 				self.registers.P.modify_z(self.registers.A);
+			}
+			Instructions::PHP => {
+				// Push Processor Status on Stack
+				// The status register will be pushed with the break flag and bit 5 set to 1.
+				// push SR
+
+				self.push_p();
+			}
+			Instructions::PLP => {
+				// Pull Processor Status from Stack
+				// The status register will be pulled with the break flag and bit 5 ignored.
+				// pull SR
+
+				let p_flags = self.pop_stack();
+				self.registers.P.flags = p_flags;
 			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
