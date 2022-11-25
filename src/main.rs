@@ -28,8 +28,9 @@ fn greenscreen() {
 	let memory_bus = MemoryBus::new(memory, rom);
 	let mut cpu = CPU::new(memory_bus);
 
-	sdl2_setup();
+	//sdl2_setup();
 
+	info!("Running emulator");
 	for i in 0..20 {
 		info!("Assembly line: {}", i);
 		cpu.clock_tick();

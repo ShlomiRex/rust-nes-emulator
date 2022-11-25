@@ -551,6 +551,22 @@ impl CPU {
 				let p_flags = self.pop_stack();
 				self.registers.P.flags = p_flags;
 			}
+			Instructions::RTI => {
+				// Return from Interrupt
+				// The status register is pulled with the break flag and bit 5 ignored. Then PC is pulled from the stack.
+				// pull SR, pull PC
+
+				let p = self.pop_stack();
+				self.registers.P = ProcessorStatus {flags: p };
+				let b = self.registers.P.get(ProcessorStatusBits::BREAK);
+				self.registers.P.set(ProcessorStatusBits::BREAK, !b);
+				
+				self.registers.PC =  self.pop_pc();
+			}
+			Instructions::ROL => {
+				// Rotate One Bit Left (Memory or Accumulator)
+				// C <- [76543210] <- C
+			}
 			_ => {
 				panic!("Could not execute instruction: {:?}, not implimented, yet", instr);
 			}
@@ -599,6 +615,7 @@ impl CPU {
 			debug!("Executing IRQ interrupt");
 			self.push_pc(0);
 
+			//TODO: Not sure if we set break flag to 0. Research
 			self.registers.P.set(ProcessorStatusBits::BREAK, false);
 			self.registers.P.set(ProcessorStatusBits::InterruptDisable, true);
 			self.push_p();
@@ -799,6 +816,13 @@ impl CPU {
 	/// Push processor status register onto stack
 	fn push_p(&mut self) {
 		self.push_stack(self.registers.P.flags);
+	}
+
+	/// Pops PC from stack.
+	fn pop_pc(&mut self) -> u16 {
+		let lsb = self.pop_stack() as u16;
+		let msb = self.pop_stack() as u16;
+		(msb << 8) | lsb
 	}
 
 }
