@@ -14,6 +14,7 @@ pub struct Header {
 	flags10: u8				// TV system, PRG-RAM presence (unofficial, rarely used extension)
 }
 
+#[derive(Debug)]
 pub struct RomParser {
 	pub header: Header,
 	pub prg_rom: Vec<u8>,
@@ -55,7 +56,7 @@ impl RomParser {
 		if padding_bytes != [0, 0, 0, 0, 0] {
 			debug!("Padding bytes are not zero: {:?}", padding_bytes);
 		}
-		debug!("{:#02X?}", self.header);
+		debug!("{:?}", self.header);
 	}
 
 	fn parse_prg_rom(&mut self, contents: &Vec<u8>) {

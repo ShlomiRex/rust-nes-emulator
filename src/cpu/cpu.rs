@@ -1,7 +1,7 @@
 use core::panic;
 use log::{debug, error, warn};
 
-use crate::cpu::registers::{Registers, ProcessorStatusBits};
+use crate::cpu::registers::{Registers, ProcessorStatusBits, ProcessorStatus};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::memory::MemoryBus;
 
@@ -16,7 +16,6 @@ pub struct CPU {
 impl CPU {
 	pub fn new(memory: MemoryBus) -> Self {
 		let mut registers: Registers = Registers::default();
-		registers.S = 0xFF; //TODO: Remove. The original NES does not initialize the stack register; Its random at startup. But I need this to debug my programs for now.
 		let mut cpu = CPU {
 			registers,
 			memory,
@@ -561,17 +560,56 @@ impl CPU {
 	/// Reset interrupt. Address: $0xFFFC, $0xFFFD
 	fn res_interrupt(&mut self) {
 		debug!("Reset interrupt called");
+
+		self.registers.A = 0;
+		self.registers.X = 0;
+		self.registers.Y = 0;
+		self.registers.S = 0xFF;
+		self.registers.P = ProcessorStatus::default();
 		
 		let new_addr = self.read_address_from_memory(0xFFFC);
 		debug!("Jumping to interrupt address: {:#X}", new_addr);
 		self.registers.PC = new_addr;
+
+		self.cycles = 8;
 	}
 
 	/// Non-maskable interrupt. Address: $0xFFFA, $0xFFFB
-	// fn nmi_interrupt(&self)
+	fn nmi_interrupt(&mut self) {
+		debug!("NMI interrupt called");
+		
+		self.push_pc(0);
+
+		self.registers.P.set(ProcessorStatusBits::BREAK, false);
+		self.registers.P.set(ProcessorStatusBits::InterruptDisable, true);
+		self.push_p();
+
+		let new_addr = self.read_address_from_memory(0xFFFA);
+		debug!("Jumping to interrupt address: {:#X}", new_addr);
+		self.registers.PC = new_addr;
+
+		self.cycles = 8;
+	}
 
 	/// Maskable interrupt. Address: $0xFFFE, $0xFFFF
-	// fn irq_interrupt(&self)
+	fn irq_interrupt(&mut self) {
+		debug!("IRQ interrupt called");
+
+		if self.registers.P.get(ProcessorStatusBits::InterruptDisable) == false {
+			debug!("Executing IRQ interrupt");
+			self.push_pc(0);
+
+			self.registers.P.set(ProcessorStatusBits::BREAK, false);
+			self.registers.P.set(ProcessorStatusBits::InterruptDisable, true);
+			self.push_p();
+
+			let new_addr = self.read_address_from_memory(0xFFFE);
+			debug!("Jumping to interrupt address: {:#X}", new_addr);
+			self.registers.PC = new_addr;
+
+			self.cycles = 7;
+		}
+	}
 
 	fn push_stack(&mut self, data: u8) {
 		self.memory.write(0x100 + self.registers.S as u16, data);

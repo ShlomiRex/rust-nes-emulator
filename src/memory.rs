@@ -61,7 +61,7 @@ impl MemoryBus {
 			debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
 			self.memory[addr as usize] = data;
 		} else {
-			panic!("Cannot write to memory location: {}, its read only!", addr);
+			panic!("Cannot write to memory location: {:#X}, its read only!", addr);
 		}
 	}
 
