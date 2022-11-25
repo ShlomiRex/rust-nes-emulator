@@ -8,10 +8,33 @@ pub struct Header {
 	prg_rom_size: u8, 		// Program ROM size (in 16KB chunks, i.e., 2 means 32KB)
 	chr_rom_size: u8,		// Character ROM size (in 8KN chunks)
 	flags6: u8,				// Mapper, mirroring, battery, trainer
-	flags7: u8,				// Mapper, VS/Playchoice, NES 2.0
-	flags8: u8,				// PRG-RAM size (rarely used extension)
-	flags9: u8,				// TV system (rarely used extension)
-	flags10: u8				// TV system, PRG-RAM presence (unofficial, rarely used extension)
+
+	// Flags 6 lower 4 bits ; Flags 7 upper 4 bits
+	mapper: u8,
+
+	// Flags 7
+	vsunitsystem: bool,
+	playchoise10: bool,
+	nes2_format: bool,
+
+	// Flags 8
+	prg_ram_size: u8,
+
+	// Flags 9
+	flags9_tv_system: TVSystem,
+
+	// Flags 10
+	flags10_tv_system: TVSystem,
+	prg_ram_not_present: bool,
+	bus_conflicts: bool,
+}
+
+#[derive(Default, Debug)]
+pub enum TVSystem {
+	#[default]
+	NTSC,
+	PAL,
+	DUAL
 }
 
 #[derive(Debug)]
@@ -42,21 +65,85 @@ impl RomParser {
 	fn parse_header(&mut self, contents: &Vec<u8>) {
 		assert_eq!(&contents[0..4], b"NES\x1A", "Incorrect magic bytes");
 
+		let flags6 = contents[6];
+		let flags7 = contents[7];
+		let flags8 = contents[8];
+		let flags9 = contents[9];
+		let flags10 = contents[10];
+
+
+		// ==================== FLAGS 6 ====================
+		// Mapper number (Lower 4 bits of mapper)
+		let lsb_mapper = flags6 >> 4;
+		
+		// ==================== FLAGS 7 ====================
+		// VS unitsystem
+		let vsunitsystem = (flags7 & 1) == 1;
+
+		// PlayChoice-10 (8KB of Hint Screen data stored after CHR data)
+		let playchoise10 = (flags7 >> 1) & 1 == 1;
+
+		// NES 2.0 format
+		let nes2_format = (flags7 >> 2) & 0b0000_0011 == 2;
+		assert_ne!(nes2_format, true, "The emulator does not support NES 2.0 format");
+
+		// Mapper number (Upper 4 bits of mapper)
+		let msb_mapper = flags7 & 0b1111_0000;
+
+		// ==================== FLAGS 8 ====================
+		// PRG RAM size
+		// Size of PRG RAM in 8 KB units (Value 0 infers 8 KB for compatibility)
+		let prg_ram_size = flags8;
+
+		// ==================== FLAGS 9 ====================
+
+		// TV system (0: NTSC; 1: PAL)
+		let flags9_tv_system = if (flags9 & 1) == 1 {
+			TVSystem::PAL
+		} else {
+			TVSystem::NTSC	
+		};
+		assert_eq!(flags9 >> 1, 0, "Flags 9 reserve bits are not set to zero");
+
+		// ==================== FLAGS 10 ====================
+
+		// TV system (0: NTSC; 2: PAL; 1/3: dual compatible)
+		let flags10_tv_system = match flags10 & 0b0000_0011 {
+			0 => TVSystem::NTSC,
+			2 => TVSystem::PAL,
+			_ => TVSystem::DUAL
+		};
+
+		// PRG RAM (0: present, 1: not present)
+		let prg_ram_not_present = (flags10 >> 4) == 1;
+
+		// Board bus conflicts (0: Board has no bus conflicts; 1: Board has bus conflicts)
+		let bus_conflicts = (flags10 >> 5) == 1;
+
+
+		// ==================== END ====================
+		let mapper = msb_mapper | lsb_mapper;
+
 		self.header = Header {
 			prg_rom_size: 	contents[4],
 			chr_rom_size: 	contents[5],
-			flags6: 		contents[6],
-			flags7: 		contents[7],
-			flags8: 		contents[8],
-			flags9: 		contents[9],
-			flags10: 		contents[10]
+			flags6,
+			mapper,
+			vsunitsystem,
+			playchoise10,
+			nes2_format,
+			prg_ram_size,
+			flags9_tv_system,
+			flags10_tv_system,
+			prg_ram_not_present,
+			bus_conflicts
 		};
 
  		let padding_bytes = &contents[11..16];
 		if padding_bytes != [0, 0, 0, 0, 0] {
-			debug!("Padding bytes are not zero: {:?}", padding_bytes);
+			panic!("Padding bytes are not zero: {:?}", padding_bytes);
 		}
-		debug!("{:?}", self.header);
+		debug!("iNES header: {:#?}", self.header);
 	}
 
 	fn parse_prg_rom(&mut self, contents: &Vec<u8>) {
