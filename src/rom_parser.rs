@@ -4,9 +4,9 @@ use std::fs;
 /// Read here about iNES file format: https://www.nesdev.org/wiki/INES#iNES_file_format
 #[derive(Default, Debug)]
 pub struct Header {
-    prg_rom_size: u8, // Program ROM size (in 16KB chunks, i.e., 2 means 32KB)
-    chr_rom_size: u8, // Character ROM size (in 8KN chunks)
-    mapper: u8,
+    prg_rom_size: u8, // Program ROM size (in 16KB chunks, i.e., 2 means 32KB), also known as amount of banks
+    chr_rom_size: u8, // Character ROM size (in 8KN chunks), also known as amount of banks
+    pub mapper: u8,
 
     // Flags 6
     mirroring: Mirroring,
@@ -103,10 +103,10 @@ impl RomParser {
 
         // ==================== FLAGS 7 ====================
         // VS unitsystem
-        let vsunitsystem = (flags7 & 1) == 1;
+        let vs_unit_system = (flags7 & 1) == 1;
 
         // PlayChoice-10 (8KB of Hint Screen data stored after CHR data)
-        let playchoise10 = (flags7 >> 1) & 1 == 1;
+        let play_choise_10 = (flags7 >> 1) & 1 == 1;
 
         // NES 2.0 format
         let nes2_format = (flags7 >> 2) & 0b0000_0011 == 2;
@@ -159,8 +159,8 @@ impl RomParser {
             battery_prg_ram,
             trainer,
             ignore_mirroring_control,
-            vs_unit_system: vsunitsystem,
-            play_choise_10: playchoise10,
+            vs_unit_system,
+            play_choise_10,
             nes2_format,
             prg_ram_size,
             flags9_tv_system,
@@ -179,7 +179,7 @@ impl RomParser {
     fn parse_prg_rom(&mut self, contents: &Vec<u8>) {
         let prg_rom_size_bytes: usize = 1024 * 16 * self.header.prg_rom_size as usize;
         let prg_rom = &contents[16..16 + prg_rom_size_bytes];
-        debug!("PRG ROM bytes: {}", prg_rom.len());
+        debug!("PRG ROM size: {}KB", prg_rom.len()/1024);
         //assert_eq!(prg_rom.len(), 1024 * 32, "The emulator, currently, supports PRG ROM of size 32KB.");
         debug!("First 16 bytes of PRG ROM: {:X?}", &prg_rom[0..16]);
         debug!(
@@ -191,7 +191,7 @@ impl RomParser {
 
     fn parse_chr_rom(&mut self, contents: &Vec<u8>) {
         let mut chr_rom_bytes = 1024 * 8 * self.header.chr_rom_size as usize;
-        debug!("CHR ROM bytes: {}", chr_rom_bytes);
+        debug!("CHR ROM size: {}KB", chr_rom_bytes/1024);
         if chr_rom_bytes == 0 {
             //TODO: What to do here? It's empty bytes.
             // "If Y=0, you prepare an empty 8192 bytes of memory, and allow writing into CHR."
