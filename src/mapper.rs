@@ -22,6 +22,7 @@ enum MemoryMap {
 
 fn get_memory_map(addr: u16) -> MemoryMap {
 	match addr {
+		// Low 32KB
 		0x0000..=0x00FF => MemoryMap::ZEROPAGE,
 		0x0100..=0x01FF => MemoryMap::STACK,
 		0x0200..=0x07FF => MemoryMap::RAM,
@@ -29,26 +30,51 @@ fn get_memory_map(addr: u16) -> MemoryMap {
 		0x2000..=0x401F => MemoryMap::MappedIO,
 		0x4020..=0x5FFF => MemoryMap::ExpansionROM,
 		0x6000..=0x7FFF => MemoryMap::SRAM,
+		// High 32KB
 		_ => MemoryMap::PrgRom
 	}
 }
 
-pub struct Mapper0 {
+/// Generic mapper without logic.
+pub struct Mapper {
 	memory: [u8; 32_768],
 	rom: ROM,
 	rom_start: u16 			// ROM can be 16kb, which means, we need to align it to the last bytes of addressable memory.
 }
 
+pub struct Mapper0(Mapper);
+pub struct Mapper1(Mapper);
+
 impl Mapper0 {
-	pub fn new(mut memory: Memory, rom: ROM) -> Self {
+	pub fn new(memory: Memory, rom: ROM) -> Self {
 		let mut rom_start = 0x8000;
 		if rom.rom.len() == 1024 * 16 {
 			rom_start = 0x8000 + 0x4000;
 		}
-		Mapper0{
+		let mapper = Mapper{
 			memory,
 			rom,
 			rom_start
+		};
+		Mapper0{
+			0: mapper
+		}
+	}
+}
+
+impl Mapper1 {
+	pub fn new(memory: Memory, rom: ROM) -> Self {
+		let mut rom_start = 0x8000;
+		if rom.rom.len() == 1024 * 16 {
+			rom_start = 0x8000 + 0x4000;
+		}
+		let mapper = Mapper{
+			memory,
+			rom,
+			rom_start
+		};
+		Mapper1{
+			0: mapper
 		}
 	}
 }
@@ -58,19 +84,39 @@ impl Mapping for Mapper0 {
 		if addr < 0x8000 {
 			let map = get_memory_map(addr);
 			debug!("Reading from {:?}, address: {:#X}", map, addr);
-			self.memory[addr as usize]
+			self.0.memory[addr as usize]
 		} else {
-			self.rom.read(addr - self.rom_start)
+			self.0.rom.read(addr - self.0.rom_start)
 		}
 	}
 	fn write(&mut self, addr: u16, data: u8) {
 		let map = get_memory_map(addr);
 		if addr < 0x8000 {
 			debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
-			self.memory[addr as usize] = data;
+			self.0.memory[addr as usize] = data;
 		} else {
 			panic!("Cannot write to memory location: {:#X}, its read only! Memory region: {:?}", addr, map);
 		}
 	}
 }
 
+impl Mapping for Mapper1 {
+	fn read(&self, addr: u16) -> u8 {
+		if addr < 0x8000 {
+			let map = get_memory_map(addr);
+			debug!("Reading from {:?}, address: {:#X}", map, addr);
+			self.0.memory[addr as usize]
+		} else {
+			self.0.rom.read(addr - self.0.rom_start)
+		}
+	}
+	fn write(&mut self, addr: u16, data: u8) {
+		let map = get_memory_map(addr);
+		if addr < 0x8000 {
+			debug!("Writing to {:?}, address: {:#X}, data: {:#X}", map, addr, data);
+			self.0.memory[addr as usize] = data;
+		} else {
+			panic!("Cannot write to memory location: {:#X}, its read only! Memory region: {:?}", addr, map);
+		}
+	}
+}

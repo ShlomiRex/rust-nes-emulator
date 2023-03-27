@@ -9,17 +9,17 @@ use hex::FromHex;
 
 pub struct CPU {
 	registers: Registers,
-	mapper: Mapper0,
-	cycles: u64
+	cycles: u64,
+	mapper: Box<dyn Mapping>
 }
 
 impl CPU {
-	pub fn new(mapper: Mapper0) -> Self {
+	pub fn new(mapper: Box<dyn Mapping>) -> Self {
 		let mut registers: Registers = Registers::default();
 		let mut cpu = CPU {
 			registers,
-			mapper,
-			cycles: 0
+			cycles: 0,
+			mapper
 		};
 		cpu.res_interrupt();
 		cpu
@@ -837,7 +837,7 @@ mod tests {
 		cpu::registers::ProcessorStatusBits,
 		rom::ROM,
 		rom_parser::RomParser,
-		mapper::{Mapper0, Mapping}
+		mapper::Mapper0
 	};
 
     use super::CPU;
@@ -852,7 +852,7 @@ mod tests {
 		
 		let memory: Memory = [0; 32768];
 		let mapper0 = Mapper0::new(memory, rom);
-		let mut cpu = CPU::new(mapper0);
+		let mut cpu = CPU::new(Box::new(mapper0));
 		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
 		cpu
 	}
@@ -872,7 +872,7 @@ mod tests {
 	
 		let memory: Memory = [0; 32768];
 		let mapper0 = Mapper0::new(memory, rom);
-		let cpu = CPU::new(mapper0);
+		let cpu = CPU::new(Box::new(mapper0));
 		cpu
 	}
 

@@ -1,4 +1,5 @@
 use log::{debug, info};
+use core::panic;
 use std::fs;
 
 /// Read here about iNES file format: https://www.nesdev.org/wiki/INES#iNES_file_format
@@ -150,6 +151,10 @@ impl RomParser {
 
         // ==================== END ====================
         let mapper = msb_mapper | lsb_mapper;
+
+		if mapper != 0 {
+			panic!("The emulator only supports mapper 0. ROM mapper is {}", mapper);
+		}
 
         self.header = Header {
             prg_rom_size: contents[4],
