@@ -1,0 +1,24 @@
+2023-03-27T16:00:37.996Z INFO  [rust_nes_emulator::rom_parser] Parsing ROM: 6502asm_programs/greenscreen.nes
+2023-03-27T16:00:37.997Z DEBUG [rust_nes_emulator::rom_parser] iNES header: Header {
+    prg_rom_size: 2,
+    chr_rom_size: 1,
+    mapper: 0,
+    mirroring: HORIZONTAL,
+    battery_prg_ram: false,
+    trainer: false,
+    ignore_mirroring_control: false,
+    vs_unit_system: false,
+    play_choise_10: false,
+    nes2_format: false,
+    prg_ram_size: 0,
+    flags9_tv_system: NTSC,
+    flags10_tv_system: NTSC,
+    prg_ram_not_present: false,
+    bus_conflicts: false,
+}
+2023-03-27T16:00:37.999Z DEBUG [rust_nes_emulator::rom_parser] PRG ROM size: 32KB
+2023-03-27T16:00:37.999Z DEBUG [rust_nes_emulator::rom_parser] First 16 bytes of PRG ROM: [40, 40, 78, D8, A2, 0, 8E, 0, 20, 8E, 1, 20, 2C, 2, 20, 10]       
+2023-03-27T16:00:38.000Z DEBUG [rust_nes_emulator::rom_parser] Last 16 bytes of PRG ROM: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 80, 2, 80, 0, 80]
+2023-03-27T16:00:38.000Z DEBUG [rust_nes_emulator::rom_parser] CHR ROM size: 8KB
+2023-03-27T16:00:38.001Z DEBUG [rust_nes_emulator::cpu::cpu] Reset interrupt called
+2023-03-27T16:00:38.001Z DEBUG [rust_nes_emulator::cpu::cpu] Jumping to interrupt address: 0x0

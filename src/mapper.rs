@@ -1,5 +1,5 @@
 use crate::rom::ROM;
-use crate::memory::Memory;
+use crate::memory::CPUMemory;
 use log::debug;
 
 pub trait Mapping {
@@ -46,7 +46,7 @@ pub struct Mapper0(Mapper);
 pub struct Mapper1(Mapper);
 
 impl Mapper0 {
-	pub fn new(memory: Memory, rom: ROM) -> Self {
+	pub fn new(memory: CPUMemory, rom: ROM) -> Self {
 		let mut rom_start = 0x8000;
 		if rom.rom.len() == 1024 * 16 {
 			rom_start = 0x8000 + 0x4000;
@@ -63,7 +63,7 @@ impl Mapper0 {
 }
 
 impl Mapper1 {
-	pub fn new(memory: Memory, rom: ROM) -> Self {
+	pub fn new(memory: CPUMemory, rom: ROM) -> Self {
 		let mut rom_start = 0x8000;
 		if rom.rom.len() == 1024 * 16 {
 			rom_start = 0x8000 + 0x4000;

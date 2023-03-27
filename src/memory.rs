@@ -1,6 +1,8 @@
 extern crate hex;
 
-pub type Memory = [u8; 32_768];
+pub type CPUMemory = [u8; 32_768];
+pub type CHR_ROM = [u8; 8_192];
+
 
 /// Write to array the bytes from string, represented by hex with spaces.
 pub fn write_rom(rom_memory: &mut [u8;65_536], dump: &str) {

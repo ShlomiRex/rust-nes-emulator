@@ -2,17 +2,19 @@ use log::{debug, info};
 use core::panic;
 use std::fs;
 
+use crate::common::{PRG_Bank, CHR_Bank};
+
 /// Read here about iNES file format: https://www.nesdev.org/wiki/INES#iNES_file_format
 #[derive(Default, Debug)]
 pub struct Header {
-    prg_rom_size: u8, // Program ROM size (in 16KB chunks, i.e., 2 means 32KB), also known as amount of banks
-    chr_rom_size: u8, // Character ROM size (in 8KN chunks), also known as amount of banks
+    pub prg_rom_size: u8, // Program ROM size (in 16KB chunks, i.e., 2 means 32KB), also known as amount of banks
+    pub chr_rom_size: u8, // Character ROM size (in 8KN chunks), also known as amount of banks
     pub mapper: u8,
 
     // Flags 6
-    mirroring: Mirroring,
-    battery_prg_ram: bool,
-    trainer: bool,
+    pub mirroring: MirrorType,
+    pub battery_prg_ram: bool,
+    pub trainer: bool,
     ignore_mirroring_control: bool,
 
     // Flags 7
@@ -41,7 +43,7 @@ pub enum TVSystem {
 }
 
 #[derive(Default, Debug)]
-pub enum Mirroring {
+pub enum MirrorType {
     #[default]
     HORIZONTAL,
     VERTICAL,
@@ -50,8 +52,8 @@ pub enum Mirroring {
 #[derive(Debug)]
 pub struct RomParser {
     pub header: Header,
-    pub prg_rom: Vec<u8>,
-    pub chr_rom: Vec<u8>,
+    pub prg_rom: Vec<PRG_Bank>,
+    pub chr_rom: Vec<CHR_Bank>,
 }
 
 impl RomParser {
@@ -85,9 +87,9 @@ impl RomParser {
         // Mirroring: 	0: horizontal (vertical arrangement) (CIRAM A10 = PPU A11)
         // 				1: vertical (horizontal arrangement) (CIRAM A10 = PPU A10)
         let mirroring = if (flags6 & 1) == 1 {
-			Mirroring::VERTICAL
+			MirrorType::VERTICAL
 		} else {
-			Mirroring::HORIZONTAL
+			MirrorType::HORIZONTAL
 		};
 
 		// 1: Cartridge contains battery-backed PRG RAM ($6000-7FFF) or other persistent memory
@@ -183,7 +185,10 @@ impl RomParser {
 
     fn parse_prg_rom(&mut self, contents: &Vec<u8>) {
         let prg_rom_size_bytes: usize = 1024 * 16 * self.header.prg_rom_size as usize;
+
+		// The entire PRG memory in one vector
         let prg_rom = &contents[16..16 + prg_rom_size_bytes];
+
         debug!("PRG ROM size: {}KB", prg_rom.len()/1024);
         //assert_eq!(prg_rom.len(), 1024 * 32, "The emulator, currently, supports PRG ROM of size 32KB.");
         debug!("First 16 bytes of PRG ROM: {:X?}", &prg_rom[0..16]);
@@ -191,7 +196,14 @@ impl RomParser {
             "Last 16 bytes of PRG ROM: {:X?}",
             &prg_rom[prg_rom.len() - 16..]
         ); // This contains interrupt vectors
-        self.prg_rom = prg_rom.to_vec();
+
+		// Split the PRG memory into banks
+		self.prg_rom = Vec::with_capacity(self.header.prg_rom_size as usize);
+		for chunk in prg_rom.chunks_exact(16 * 1024) {
+			self.prg_rom.push(chunk.to_vec().try_into().unwrap());
+		}
+		debug!("First 16 bytes of lower PRG ROM: {:X?}", &self.prg_rom.get(0).unwrap()[0..16]);
+		debug!("Last 16 bytes of upper PRG ROM: {:X?}", &self.prg_rom.get(1).unwrap()[0x4000-16..0x4000]);
     }
 
     fn parse_chr_rom(&mut self, contents: &Vec<u8>) {
@@ -207,6 +219,11 @@ impl RomParser {
         let prg_rom_size_bytes: usize = 1024 * 16 * self.header.prg_rom_size as usize;
         let chr_rom = &contents[16 + prg_rom_size_bytes..]; // Get the rest of the bytes. The size of the entire file must be exact match to expected size.
         assert_eq!(chr_rom.len(), chr_rom_bytes);
-        self.chr_rom = chr_rom.to_vec();
+
+		// Split the CHR memory into banks
+		self.chr_rom = Vec::with_capacity(self.header.chr_rom_size as usize);
+		for chunk in chr_rom.chunks_exact(8 * 1024) {
+			self.chr_rom.push(chunk.to_vec().try_into().unwrap());
+		}
     }
 }

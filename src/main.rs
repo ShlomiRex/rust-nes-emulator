@@ -8,19 +8,23 @@ mod common;
 mod ppu;
 mod mapper;
 mod rom;
+mod cartridge;
+mod mmu;
 
-use mapper::{Mapping, Mapper0, Mapper1};
-use memory::Memory;
+use core::panic;
+
+use mapper::{Mapping, Mapper0};
+use memory::CPUMemory;
 use rom::ROM;
 use cpu::cpu::CPU;
 use simple_logger::SimpleLogger;
 use rom_parser::RomParser;
-
+use cartridge::Cartridge;
+use mmu::MMU;
 
 fn main() {
 	SimpleLogger::new().init().unwrap();
-
-	//greenscreen();
+	//render::sdl2_setup();
 	
 	//let path = "C:\\Users\\Shlomi\\Desktop\\Projects\\nes-test-roms\\blargg_nes_cpu_test5\\official.nes";
 	//let path = "6502asm_programs/nestest.nes";
@@ -29,30 +33,34 @@ fn main() {
 	let mut rom_parser = RomParser::new();
 	rom_parser.parse(path);
 
-	// TODO: Check mapper support, currently i'm working on mapper 1
-	let prg_rom = rom_parser.prg_rom;
-	
-	let rom: ROM = ROM {
-		rom: prg_rom
-	};
 
-	let memory: Memory = [0; 32768];
+	let cartridge = Cartridge::new(rom_parser);
+	let mmu = MMU::new(cartridge);
 
-	let mapper = rom_parser.header.mapper;
-	let mapper: Box<dyn Mapping> = match mapper {
-		0 => Box::new(Mapper0::new(memory, rom)),
-		1 => Box::new(Mapper1::new(memory, rom)),
-		_ => panic!("The emulator does not support mapper {} yet", mapper)
-	};
-	let mut cpu = CPU::new(mapper);
 
-	// let mut i = 0;
-	// while i < 12 {
-	// 	cpu.clock_tick();
-	// 	i += 1;
-	// }
+	// let prg_rom = rom_parser.prg_rom;
+	// let rom: ROM = ROM {
+	// 	rom: prg_rom
+	// };
 
-	loop {
+	// let memory: CPUMemory = [0; 32768];
+
+	// let mapper = rom_parser.header.mapper;
+	// let mapper: Box<dyn Mapping> = match mapper {
+	// 	0 => Box::new(Mapper0::new(memory, rom)),
+	// 	_ => panic!("The emulator does not support mapper {} yet", mapper)
+	// };
+
+
+	let mut cpu = CPU::new(mmu);
+
+	let mut i = 0;
+	while i < 12 {
 		cpu.clock_tick();
+		i += 1;
 	}
+
+	// loop {
+	// 	cpu.clock_tick();
+	// }
 }

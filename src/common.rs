@@ -12,3 +12,6 @@ pub mod bits {
 		flags & (1 << index) != 0
 	}
 }
+
+pub type PRG_Bank = [u8; 16_384];
+pub type CHR_Bank = [u8; 8_192];
