@@ -34,7 +34,7 @@ fn main() {
 	rom_parser.parse(path);
 
 
-	let cartridge = Cartridge::new(rom_parser);
+	let cartridge = Cartridge::new_with_parser(rom_parser);
 	let mmu = MMU::new(cartridge);
 
 

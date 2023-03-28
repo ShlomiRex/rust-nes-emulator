@@ -3,7 +3,7 @@ use crate::memory::write_rom;
 // Each function loads a program to memory, and returns amount of assembly lines used.
 
 /// Basic stack operations; Push A, pull A.
-pub fn load_program_stack(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_stack(rom: &mut [u8;32_768]) -> u8 {
 	// Push "8c ab" onto stack and get it
 	/*
 		LDA #$8C
@@ -20,7 +20,7 @@ pub fn load_program_stack(rom: &mut [u8;65_536]) -> u8 {
 }
 
 /// Load A register; Changes P bitflags: negative, zero.
-pub fn load_program_lda(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_lda(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$FF
 	LDA #$00
@@ -30,7 +30,7 @@ pub fn load_program_lda(rom: &mut [u8;65_536]) -> u8 {
 	3
 }
 
-pub fn load_program_adc(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_adc(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	CLD
 	LDA #$09
@@ -62,7 +62,7 @@ pub fn load_program_adc(rom: &mut [u8;65_536]) -> u8 {
 	19
 }
 
-pub fn load_program_absolute_store(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_absolute_store(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	SEI
 	CLD
@@ -75,7 +75,7 @@ pub fn load_program_absolute_store(rom: &mut [u8;65_536]) -> u8 {
 	6
 }
 
-pub fn load_program_index_increment(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_index_increment(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDX #$FE
 	INX
@@ -86,7 +86,7 @@ pub fn load_program_index_increment(rom: &mut [u8;65_536]) -> u8 {
 	4
 }
 
-pub fn load_program_zeropage_store_load_and_memory_increment(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_zeropage_store_load_and_memory_increment(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDX #$FE
 	STX $0A
@@ -98,7 +98,7 @@ pub fn load_program_zeropage_store_load_and_memory_increment(rom: &mut [u8;65_53
 	5
 }
 
-pub fn load_program_zeropage_x(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_zeropage_x(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDX #$FE 	; Load index X
 	STX $0A 	; Store index in zero page (non-indexed)
@@ -117,7 +117,7 @@ pub fn load_program_zeropage_x(rom: &mut [u8;65_536]) -> u8 {
 	9
 }
 
-pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_absolute_indexed(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$0A 		; A=0x0A
 	STA $2000		; $0x2000 = 0x0A
@@ -134,7 +134,7 @@ pub fn load_program_absolute_indexed(rom: &mut [u8;65_536]) -> u8 {
 	8
 }
 
-pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_jmp_absolute(rom: &mut [u8;32_768]) -> u8 {
 	// Execute 1 byte long instruction at memory location 0x0001
 
 	/*
@@ -148,7 +148,7 @@ pub fn load_program_jmp_absolute(rom: &mut [u8;65_536]) -> u8 {
 	4  	// 4 instructions, the last instruction should be executed (0xF8 = SED).
 }
 
-pub fn load_program_jmp_indirect(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_jmp_indirect(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$05
 	STA $00AB
@@ -162,7 +162,7 @@ pub fn load_program_jmp_indirect(rom: &mut [u8;65_536]) -> u8 {
 	5
 }
 
-pub fn load_program_cmp(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_cmp(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$05
 
@@ -182,7 +182,7 @@ pub fn load_program_cmp(rom: &mut [u8;65_536]) -> u8 {
 	9
 }
 
-pub fn load_program_cpx(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_cpx(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$05
 	STA $0A
@@ -202,7 +202,7 @@ pub fn load_program_cpx(rom: &mut [u8;65_536]) -> u8 {
 	9
 }
 
-pub fn load_program_jsr(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_jsr(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	JSR $0A0B  	; We push to stack: PC + 2
 	- 			; Because we jump, we don't want to execute NOP. Because the PC changed.
@@ -211,7 +211,7 @@ pub fn load_program_jsr(rom: &mut [u8;65_536]) -> u8 {
 	1
 }
 
-pub fn load_program_absolute_indexed_with_carry(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_absolute_indexed_with_carry(rom: &mut [u8;32_768]) -> u8 {
 	// NOTE: After this guys answer: https://www.reddit.com/r/EmuDev/comments/yuejcm/addressing_mode_absolute_indexed_do_we_add_carry/
 	// Apperantly, carry is not used in calculating address in absolute index addressing mode.
 	// But I already created this program so why not test it aswell?
@@ -227,7 +227,7 @@ pub fn load_program_absolute_indexed_with_carry(rom: &mut [u8;65_536]) -> u8 {
 	5
 }
 
-pub fn load_program_transfers(rom: &mut [u8;65_536]) -> u8 {	
+pub fn load_program_transfers(rom: &mut [u8;32_768]) -> u8 {	
 	/*
 	LDA #$AA	; A = AA
 	TAX  		; X = AA
@@ -244,7 +244,7 @@ pub fn load_program_transfers(rom: &mut [u8;65_536]) -> u8 {
 	9
 }
 
-pub fn load_program_and(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_and(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$FF
 	AND #$FF ; A = 0xFF
@@ -257,7 +257,7 @@ pub fn load_program_and(rom: &mut [u8;65_536]) -> u8 {
 	6
 }
 
-pub fn load_program_asl(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_asl(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDA #$01
 	ASL A
@@ -283,7 +283,7 @@ pub fn load_program_asl(rom: &mut [u8;65_536]) -> u8 {
 	15
 }
 
-pub fn load_program_bit(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_bit(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	LDX #$7f
 	STX $44
@@ -303,7 +303,7 @@ pub fn load_program_bit(rom: &mut [u8;65_536]) -> u8 {
 	10
 }
 
-pub fn load_program_bcc(rom: &mut [u8;65_536]) -> u8 {
+pub fn load_program_bcc(rom: &mut [u8;32_768]) -> u8 {
 	/*
 	clc
 	nop
@@ -322,6 +322,6 @@ pub fn load_program_bcc(rom: &mut [u8;65_536]) -> u8 {
 	8
 }
 
-// pub fn load_program_page_crossed(rom: &mut [u8;65_536]) -> u8 {
+// pub fn load_program_page_crossed(rom: &mut [u8;32_768]) -> u8 {
 // 	// Page cross = 
 // }

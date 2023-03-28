@@ -827,45 +827,39 @@ impl CPU {
 		(msb << 8) | lsb
 	}
 
-	/// Read memory outside the CPU chip.
+	/// Generic function to read memory from CPU address space.
 	fn read_memory(&self, addr: u16) -> u8 {
 		self.mmu.read_request(addr)
 	}
 
-	/// Write memory outside the CPU chip.
-	fn write_memory(&self, addr: u16, value: u8) {
+	/// Generic function to write memory from CPU address space.
+	fn write_memory(&mut self, addr: u16, value: u8) {
 		self.mmu.write_request(addr, value);
 	}
 
 }
 
-/*
+
 #[cfg(test)]
 mod tests {
     //use simple_logger::SimpleLogger;
 
     use crate::{
 		program_loader::*, 
-		memory::CPUMemory, 
 		cpu::registers::ProcessorStatusBits,
-		rom::ROM,
-		rom_parser::RomParser,
-		mapper::Mapper0
+		rom_parser::RomParser, mmu::MMU, cartridge::Cartridge
 	};
 
     use super::CPU;
 
-	fn initialize(f: fn(&mut [u8;65_536]) -> u8) -> CPU {
-		// Create ROM and load it with any program, for testing.
-		let mut rom_memory: [u8; 65_536] = [0;65_536];
+	fn initialize(f: fn(&mut [u8;1024*32]) -> u8) -> CPU {
+		let mut rom_memory: [u8; 1024*32] = [0;1024*32];
 		f(&mut rom_memory);  // call f - load program
-		let rom: ROM = ROM {
-			rom: rom_memory.to_vec()
-		};
-		
-		let memory: CPUMemory = [0; 32768];
-		let mapper0 = Mapper0::new(memory, rom);
-		let mut cpu = CPU::new(Box::new(mapper0));
+
+		let cartridge = Cartridge::new_with_custom_rom(rom_memory);
+		let mmu = MMU::new(cartridge);
+		let mut cpu = CPU::new(mmu);
+
 		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
 		cpu
 	}
@@ -879,13 +873,9 @@ mod tests {
 		rom_parser.parse(path.as_str());
 		let prg_rom = rom_parser.prg_rom;
 		
-		let rom: ROM = ROM {
-			rom: prg_rom
-		};
-	
-		let memory: CPUMemory = [0; 32768];
-		let mapper0 = Mapper0::new(memory, rom);
-		let cpu = CPU::new(Box::new(mapper0));
+		let cartridge = Cartridge::new();
+		let mmu = MMU::new(cartridge);
+		let cpu = CPU::new(mmu);
 		cpu
 	}
 
@@ -898,11 +888,11 @@ mod tests {
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x8C);
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x1FF), 0x8C);
+		assert_eq!(cpu.read_memory(0x1FF), 0x8C);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xAB);
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x1FE), 0xAB);
+		assert_eq!(cpu.read_memory(0x1FE), 0xAB);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xAB);
 		cpu.clock_tick();
@@ -983,13 +973,13 @@ mod tests {
 		cpu.clock_tick();
 		cpu.clock_tick();
 
-		assert_eq!(cpu.mapper.read(0x2000), 0);
+		assert_eq!(cpu.read_memory(0x2000), 0);
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x2000), 0xAB);
+		assert_eq!(cpu.read_memory(0x2000), 0xAB);
 
-		assert_eq!(cpu.mapper.read(0x2001), 0);
+		assert_eq!(cpu.read_memory(0x2001), 0);
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x2001), 0xAB);
+		assert_eq!(cpu.read_memory(0x2001), 0xAB);
 	}
 
 	#[test]
@@ -1018,14 +1008,14 @@ mod tests {
 		assert_eq!(cpu.registers.X, 0xFE);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x0A), 0xFE);
+		assert_eq!(cpu.read_memory(0x0A), 0xFE);
 
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x0A), 0xFF);
+		assert_eq!(cpu.read_memory(0x0A), 0xFF);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), false);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
-		assert_eq!(cpu.mapper.read(0x0A), 0x00);
+		assert_eq!(cpu.read_memory(0x0A), 0x00);
 
 		cpu.clock_tick();
 	}
@@ -1040,7 +1030,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x0A), 0xFE);
+		assert_eq!(cpu.read_memory(0x0A), 0xFE);
 		assert_ne!(cpu.registers.A, 0xFE);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFE);
@@ -1060,7 +1050,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x2000), 0x0A);
+		assert_eq!(cpu.read_memory(0x2000), 0x0A);
 		cpu.clock_tick();
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.Y, 0x0A);
@@ -1079,7 +1069,7 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
+		assert_eq!(cpu.read_memory(0x0001), 0xF8); 	// Instruction SED (0xF8) is stored in memory location 0x0001. It's 1 byte long instruction.
 
 		assert_ne!(cpu.registers.PC, 0x0001);
 		cpu.clock_tick();
@@ -1097,11 +1087,11 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x00AB), 0x05);
+		assert_eq!(cpu.read_memory(0x00AB), 0x05);
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x00AC), 0xFF);
+		assert_eq!(cpu.read_memory(0x00AC), 0xFF);
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.PC, 0xFF05);
@@ -1201,7 +1191,7 @@ mod tests {
 		
 
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x20AB), 0xFF);
+		assert_eq!(cpu.read_memory(0x20AB), 0xFF);
 
 		cpu.clock_tick();
 	}
@@ -1288,12 +1278,12 @@ mod tests {
 
 		cpu.clock_tick();
 		cpu.clock_tick();
-		assert_eq!(cpu.mapper.read(0x2000), 0x80);
+		assert_eq!(cpu.read_memory(0x2000), 0x80);
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::ZERO), true);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), false);
-		assert_eq!(cpu.mapper.read(0x2000), 0x00);
+		assert_eq!(cpu.read_memory(0x2000), 0x00);
 
 		cpu.clock_tick();
 	}
@@ -1370,4 +1360,3 @@ mod tests {
 
 }
 
-*/

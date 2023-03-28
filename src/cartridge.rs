@@ -16,7 +16,7 @@ pub struct Cartridge {
 }
 
 impl Cartridge {
-	pub fn new(rom_parser: RomParser) -> Self {
+	pub fn new_with_parser(rom_parser: RomParser) -> Self {
 		let num_prg_banks = rom_parser.header.prg_rom_size;
 		let num_chr_banks = rom_parser.header.chr_rom_size;
 		Cartridge {
@@ -28,6 +28,32 @@ impl Cartridge {
 			prg_rom: rom_parser.prg_rom,
 			chr_rom: rom_parser.chr_rom
 		}
+	}
+
+	pub fn new() -> Self {
+		Cartridge {
+			num_prg_banks: 2,
+			num_chr_banks: 0,
+			mirror_type: MirrorType::HORIZONTAL,
+			has_battery: false,
+			has_trainer: false,
+			prg_rom: vec![[0; 1024*16], [0; 1024*16]],
+			chr_rom: vec![]
+		}
+	}
+
+	pub fn new_with_custom_rom(rom: [u8;1024*32]) -> Self {
+		let mut cartridge = Cartridge::new();
+
+		// Copy first bank to cartridge
+		let first_prg_bank = cartridge.prg_rom.get_mut(0).unwrap();
+		first_prg_bank.copy_from_slice(&rom[0..1024*16]);
+
+		// Copy second bank to cartridge
+		let first_prg_bank = cartridge.prg_rom.get_mut(1).unwrap();
+		first_prg_bank.copy_from_slice(&rom[1024*16..]);
+
+		cartridge
 	}
 
 	pub fn read_prg_rom(&self, num_bank: u8, addr: u16) -> u8 {

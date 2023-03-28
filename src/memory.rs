@@ -5,7 +5,7 @@ pub type CHR_ROM = [u8; 8_192];
 
 
 /// Write to array the bytes from string, represented by hex with spaces.
-pub fn write_rom(rom_memory: &mut [u8;65_536], dump: &str) {
+pub fn write_rom(rom_memory: &mut [u8;32_768], dump: &str) {
 	let split = dump.split(" ");
 	let mut i = 0;
 	for s in split {
