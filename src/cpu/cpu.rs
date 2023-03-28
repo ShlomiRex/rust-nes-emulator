@@ -1,10 +1,9 @@
 use core::panic;
 use log::{debug, error, warn};
 
-use crate::cartridge::{Cartridge, self};
+
 use crate::cpu::registers::{Registers, ProcessorStatusBits, ProcessorStatus};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
-use crate::mapper::Mapping;
 use crate::mmu::MMU;
 
 use hex::FromHex;

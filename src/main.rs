@@ -1,21 +1,14 @@
 //#![feature(mixed_integer_ops)]  // stable since 1.67.0-nightly
 mod cpu;
-mod memory;
 pub mod program_loader;
 mod render;
 mod rom_parser;
 mod common;
 mod ppu;
-mod mapper;
 mod rom;
 mod cartridge;
 mod mmu;
 
-use core::panic;
-
-use mapper::{Mapping, Mapper0};
-use memory::CPUMemory;
-use rom::ROM;
 use cpu::cpu::CPU;
 use simple_logger::SimpleLogger;
 use rom_parser::RomParser;
