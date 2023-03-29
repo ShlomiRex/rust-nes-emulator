@@ -5,11 +5,11 @@ mod render;
 mod rom_parser;
 mod common;
 mod ppu;
-mod rom;
 mod cartridge;
 mod mmu;
 
 use cpu::cpu::CPU;
+use ppu::ppu::PPU;
 use simple_logger::SimpleLogger;
 use rom_parser::RomParser;
 use cartridge::Cartridge;
@@ -20,13 +20,14 @@ fn main() {
 	//render::sdl2_setup();
 	
 	//let path = "C:\\Users\\Shlomi\\Desktop\\Projects\\nes-test-roms\\blargg_nes_cpu_test5\\official.nes";
-	//let path = "6502asm_programs/nestest.nes";
-	let path = "6502asm_programs/greenscreen.nes";
+	let path = "6502asm_programs/nestest.nes";
+	//let path = "6502asm_programs/greenscreen.nes";
 
 	let mut rom_parser = RomParser::new();
 	rom_parser.parse(path);
 
 
+	let ppu: PPU = PPU::new();
 	let cartridge = Cartridge::new_with_parser(rom_parser);
 	let mmu = MMU::new(cartridge);
 
@@ -47,13 +48,14 @@ fn main() {
 
 	let mut cpu = CPU::new(mmu);
 
-	let mut i = 0;
-	while i < 12 {
-		cpu.clock_tick();
-		i += 1;
-	}
-
-	// loop {
+	// let mut i = 0;
+	// while i < 12 {
 	// 	cpu.clock_tick();
+	// 	i += 1;
 	// }
+
+	loop {
+		cpu.clock_tick();
+		std::thread::sleep(std::time::Duration::from_millis(500));
+	}
 }

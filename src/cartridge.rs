@@ -1,11 +1,12 @@
 use log::debug;
 
-use crate::{rom_parser::{RomParser, MirrorType}, rom, common::{CHR_Bank, PRG_Bank}};
+use crate::{rom_parser::{RomParser, MirrorType}, common::{CHR_Bank, PRG_Bank}};
 
 pub struct Cartridge {
 	// from iNES header
-	num_prg_banks: u8,
+	pub num_prg_banks: u8,
 	num_chr_banks: u8,
+	pub mapper_num: u8,
 	mirror_type: MirrorType,
 	has_battery: bool,
 	has_trainer: bool,
@@ -17,11 +18,10 @@ pub struct Cartridge {
 
 impl Cartridge {
 	pub fn new_with_parser(rom_parser: RomParser) -> Self {
-		let num_prg_banks = rom_parser.header.prg_rom_size;
-		let num_chr_banks = rom_parser.header.chr_rom_size;
 		Cartridge {
-			num_prg_banks,
-			num_chr_banks,
+			num_prg_banks: rom_parser.header.prg_rom_size,
+			num_chr_banks: rom_parser.header.chr_rom_size,
+			mapper_num: rom_parser.header.mapper,
 			mirror_type: rom_parser.header.mirroring,
 			has_battery: rom_parser.header.battery_prg_ram,
 			has_trainer: rom_parser.header.trainer,
@@ -34,6 +34,7 @@ impl Cartridge {
 		Cartridge {
 			num_prg_banks: 2,
 			num_chr_banks: 0,
+			mapper_num: 0,
 			mirror_type: MirrorType::HORIZONTAL,
 			has_battery: false,
 			has_trainer: false,

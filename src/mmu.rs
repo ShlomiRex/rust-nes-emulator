@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::cartridge::{Cartridge};
+use crate::{cartridge::{Cartridge}};
 
 /// The MMU is located inside the CPU (real NES hardware). Its responsible to translate logical addresses to physical addresses.
 
@@ -12,20 +12,31 @@ pub struct MMU {
 	cartridge: Cartridge,
 
 	// The CPU can only access up to 2 program memory banks and 1 character bank at once. The MMU can switch between diffirent banks.
-	activePRGBankNumberLower: u8,
-	activePRGBankNumberUpper: u8,
-	activeCHRBankNumber: u8
+	active_prgbank_number_lower: u8,
+	active_prgbank_number_upper: u8,
+	active_chrbank_number: u8
 }
 
 impl MMU {
 	pub fn new(cartridge: Cartridge) -> Self {
 		let lower_memory: [u8; 1024*32] = [0; 1024*32];
+
+		// Defautl configuration: first bank goes to lower memory, second bank goes to upper memory
+		let mut active_prgbank_number_lower = 0;
+		let mut active_prgbank_number_upper = 1;
+
+		// If there is only 1 bank, we MIRROR THE MEMORY for both lower 16KB and upper 16KB.
+		if cartridge.num_prg_banks == 1 {
+			active_prgbank_number_lower = 0;
+			active_prgbank_number_upper = 0;
+		}
+
 		MMU {
 			lower_memory,
 			cartridge,
-			activePRGBankNumberLower: 0,
-			activePRGBankNumberUpper: 1,
-			activeCHRBankNumber: 0
+			active_prgbank_number_lower,
+			active_prgbank_number_upper,
+			active_chrbank_number: 0
 		}
 	}
 
@@ -48,11 +59,16 @@ impl MMU {
 		if mapped == MemoryMap::PrgRom {	
 			if addr >= 0xC000 {
 				//debug!("Reading upper PRG ROM");
-				return self.cartridge.read_prg_rom(self.activePRGBankNumberUpper, addr - 0xC000)
+				return self.cartridge.read_prg_rom(self.active_prgbank_number_upper, addr - 0xC000)
 			} else {
 				//debug!("Reading lower PRG ROM");
-				return self.cartridge.read_prg_rom(self.activePRGBankNumberLower, addr - 0x8000)
+				return self.cartridge.read_prg_rom(self.active_prgbank_number_lower, addr - 0x8000)
 			};
+		} else if mapped == MemoryMap::MappedIO {
+			if addr >= 0x2000 && addr <= 0x2007 {
+				debug!("Reading from PPU register");
+
+			}
 		}
 		return self.lower_memory[addr as usize]
 	}
@@ -76,10 +92,10 @@ impl MMU {
 		if mapped == MemoryMap::PrgRom {
 			if addr >= 0xC000 {
 				//debug!("Writing upper PRG ROM");
-				return self.cartridge.write_prg_rom(self.activePRGBankNumberUpper, addr - 0xC000, value)
+				return self.cartridge.write_prg_rom(self.active_prgbank_number_upper, addr - 0xC000, value)
 			} else {
 				//debug!("Writing lower PRG ROM");
-				return self.cartridge.write_prg_rom(self.activePRGBankNumberLower, addr - 0x8000, value)
+				return self.cartridge.write_prg_rom(self.active_prgbank_number_lower, addr - 0x8000, value)
 			};
 		}
 

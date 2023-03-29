@@ -202,8 +202,6 @@ impl RomParser {
 		for chunk in prg_rom.chunks_exact(16 * 1024) {
 			self.prg_rom.push(chunk.to_vec().try_into().unwrap());
 		}
-		debug!("First 16 bytes of lower PRG ROM: {:X?}", &self.prg_rom.get(0).unwrap()[0..16]);
-		debug!("Last 16 bytes of upper PRG ROM: {:X?}", &self.prg_rom.get(1).unwrap()[0x4000-16..0x4000]);
     }
 
     fn parse_chr_rom(&mut self, contents: &Vec<u8>) {
