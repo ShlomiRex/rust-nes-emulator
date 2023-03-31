@@ -42,7 +42,7 @@ pub enum TVSystem {
     DUAL,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub enum MirrorType {
     #[default]
     HORIZONTAL,

@@ -7,13 +7,10 @@ mod common;
 mod ppu;
 mod cartridge;
 mod mmu;
+mod nes;
 
-use cpu::cpu::CPU;
-use ppu::ppu::PPU;
+use nes::NES;
 use simple_logger::SimpleLogger;
-use rom_parser::RomParser;
-use cartridge::Cartridge;
-use mmu::MMU;
 
 fn main() {
 	SimpleLogger::new().init().unwrap();
@@ -23,30 +20,7 @@ fn main() {
 	let path = "6502asm_programs/nestest.nes";
 	//let path = "6502asm_programs/greenscreen.nes";
 
-	let mut rom_parser = RomParser::new();
-	rom_parser.parse(path);
-
-
-	let ppu: PPU = PPU::new();
-	let cartridge = Cartridge::new_with_parser(rom_parser);
-	let mmu = MMU::new(cartridge);
-
-
-	// let prg_rom = rom_parser.prg_rom;
-	// let rom: ROM = ROM {
-	// 	rom: prg_rom
-	// };
-
-	// let memory: CPUMemory = [0; 32768];
-
-	// let mapper = rom_parser.header.mapper;
-	// let mapper: Box<dyn Mapping> = match mapper {
-	// 	0 => Box::new(Mapper0::new(memory, rom)),
-	// 	_ => panic!("The emulator does not support mapper {} yet", mapper)
-	// };
-
-
-	let mut cpu = CPU::new(mmu);
+	let mut nes = NES::new_open_rom_file(path);
 
 	// let mut i = 0;
 	// while i < 12 {
@@ -55,7 +29,7 @@ fn main() {
 	// }
 
 	loop {
-		cpu.clock_tick();
-		std::thread::sleep(std::time::Duration::from_millis(500));
+		nes.cpu.clock_tick();
+		//std::thread::sleep(std::time::Duration::from_millis(200));
 	}
 }

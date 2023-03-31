@@ -2,25 +2,44 @@ use core::panic;
 use log::{debug, error, warn};
 
 
+use crate::cartridge::Cartridge;
 use crate::cpu::registers::{Registers, ProcessorStatusBits, ProcessorStatus};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
 use crate::mmu::MMU;
+use crate::ppu::ppu::PPU;
 
 use hex::FromHex;
+
+pub struct LowerMemory {
+	pub zero_page: [u8; 0xFF],
+	pub stack: [u8; 0xFF],
+	pub ram: [u8; 0x5FF]
+}
 
 pub struct CPU {
 	registers: Registers,
 	cycles: u64,
-	mmu: MMU
+	mmu: MMU,
+	cartridge: Cartridge,
+	ppu: PPU,
+	lower_memory: LowerMemory
 }
 
 impl CPU {
-	pub fn new(mmu: MMU) -> Self {
+	pub fn new(mmu: MMU, cartridge: Cartridge, ppu: PPU) -> Self {
 		let registers: Registers = Registers::default();
+		let lower_memory = LowerMemory { 
+			zero_page: [0;0xFF], 
+			stack: [0;0xFF], 
+			ram: [0;0x5FF] 
+		};
 		let mut cpu = CPU {
 			registers,
 			cycles: 0,
-			mmu
+			mmu,
+			cartridge,
+			ppu,
+			lower_memory
 		};
 		cpu.res_interrupt();
 		cpu
@@ -828,12 +847,12 @@ impl CPU {
 
 	/// Generic function to read memory from CPU address space.
 	fn read_memory(&self, addr: u16) -> u8 {
-		self.mmu.read_request(addr)
+		self.mmu.read_request(&self.cartridge, &self.ppu, addr, &self.lower_memory)
 	}
 
 	/// Generic function to write memory from CPU address space.
 	fn write_memory(&mut self, addr: u16, value: u8) {
-		self.mmu.write_request(addr, value);
+		self.mmu.write_request(&mut self.ppu, addr, value, &mut self.lower_memory);
 	}
 
 }
@@ -846,43 +865,42 @@ mod tests {
     use crate::{
 		program_loader::*, 
 		cpu::registers::ProcessorStatusBits,
-		rom_parser::RomParser, mmu::MMU, cartridge::Cartridge
+		nes::NES
 	};
 
-    use super::CPU;
-
-	fn initialize(f: fn(&mut [u8;1024*32]) -> u8) -> CPU {
+	fn initialize<'a>(f: fn(&mut [u8;1024*32]) -> u8) -> NES {
 		let mut rom_memory: [u8; 1024*32] = [0;1024*32];
 		f(&mut rom_memory);  // call f - load program
 
-		let cartridge = Cartridge::new_with_custom_rom(rom_memory);
-		let mmu = MMU::new(cartridge);
-		let mut cpu = CPU::new(mmu);
-
-		cpu.registers.PC = 0x8000; //TODO: Is it OK here?
-		cpu
+		let mut nes = NES::new_custom_prg_rom(rom_memory);
+		nes.cpu.registers.PC = 0x8000; //TODO: Is it OK here?
+		nes
 	}
 
-	fn initialize_from_nes_rom(test_name: &str) -> CPU {
-		let mut path: String = String::from("6502asm_programs/tests/");
-		path += test_name;
-		path += ".nes";
+	// fn initialize_from_nes_rom(test_name: &str) -> CPU {
+	// 	let mut path: String = String::from("6502asm_programs/tests/");
+	// 	path += test_name;
+	// 	path += ".nes";
 
-		let mut rom_parser = RomParser::new();
-		rom_parser.parse(path.as_str());
-		let prg_rom = rom_parser.prg_rom;
+	// 	let mut rom_parser = RomParser::new();
+	// 	rom_parser.parse(path.as_str());
+	// 	let prg_rom = rom_parser.prg_rom;
 		
-		let cartridge = Cartridge::new();
-		let mmu = MMU::new(cartridge);
-		let cpu = CPU::new(mmu);
-		cpu
-	}
+	// 	let lower_memory: [u8; 1024*32] = [0;1024*32];
+	// 	let cartridge = Cartridge::new();
+	// 	//let mm_ppu_registers = &mut lower_memory[0x2000..0x2008];
+	// 	let ppu: PPU = PPU::new(&cartridge); // borrow cartridge
+	// 	let mmu = MMU::new(lower_memory, &cartridge, &ppu);
+	// 	let cpu = CPU::new(mmu);
+	// 	cpu
+	// }
 
 	// NOTE: For each program, the last cpu tick is NOP, except for branch instructions, the last instruction in those is the stored instruction in memory.
 
 	#[test]
 	fn test_stack() {
-		let mut cpu = initialize(load_program_stack);
+		let mut nes = initialize(load_program_stack);
+		let mut cpu = nes.cpu;
 		
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0x8C);
@@ -904,8 +922,9 @@ mod tests {
 
 	#[test]
 	fn test_lda() {
-		let mut cpu = initialize(load_program_lda);
-
+		let mut nes = initialize(load_program_lda);
+		let mut cpu = nes.cpu;
+		
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.A, 0xFF);
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::NEGATIVE), true);
@@ -916,7 +935,8 @@ mod tests {
 
 	#[test]
 	fn test_adc() {
-		let mut cpu = initialize(load_program_adc);
+		let mut nes = initialize(load_program_adc);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::DECIMAL), false);
@@ -966,7 +986,8 @@ mod tests {
 
 	#[test]
 	fn test_absolute_store() {
-		let mut cpu = initialize(load_program_absolute_store);
+		let mut nes = initialize(load_program_absolute_store);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -983,7 +1004,8 @@ mod tests {
 
 	#[test]
 	fn test_index_increment() {
-		let mut cpu = initialize(load_program_index_increment);
+		let mut nes = initialize(load_program_index_increment);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.X, 0xFE);
@@ -1001,7 +1023,8 @@ mod tests {
 
 	#[test]
 	fn test_zeropage_store_load_and_memory_increment() {
-		let mut cpu = initialize(load_program_zeropage_store_load_and_memory_increment);
+		let mut nes = initialize(load_program_zeropage_store_load_and_memory_increment);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.X, 0xFE);
@@ -1021,7 +1044,8 @@ mod tests {
 
 	#[test]
 	fn test_zeropage_x() {
-		let mut cpu = initialize(load_program_zeropage_x);
+		let mut nes = initialize(load_program_zeropage_x);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1045,7 +1069,8 @@ mod tests {
 
 	#[test]
 	fn test_absolute_indexed() {
-		let mut cpu = initialize(load_program_absolute_indexed);
+		let mut nes = initialize(load_program_absolute_indexed);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1064,7 +1089,8 @@ mod tests {
 
 	#[test]
 	fn test_jmp_absolute() {
-		let mut cpu = initialize(load_program_jmp_absolute);
+		let mut nes = initialize(load_program_jmp_absolute);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1082,7 +1108,8 @@ mod tests {
 
 	#[test]
 	fn test_jmp_indirect() {
-		let mut cpu = initialize(load_program_jmp_indirect);
+		let mut nes = initialize(load_program_jmp_indirect);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1098,7 +1125,8 @@ mod tests {
 
 	#[test]
 	fn test_cmp() {
-		let mut cpu = initialize(load_program_cmp);
+		let mut nes = initialize(load_program_cmp);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		
@@ -1133,7 +1161,8 @@ mod tests {
 	#[test]
 	fn test_cpx() {
 		// cpy is same...
-		let mut cpu = initialize(load_program_cpx);
+		let mut nes = initialize(load_program_cpx);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1164,8 +1193,8 @@ mod tests {
 
 	#[test]
 	fn test_jsr() {
-		let mut cpu = initialize(load_program_jsr);
-
+		let mut nes = initialize(load_program_jsr);
+		let mut cpu = nes.cpu;
 		let pc_before = cpu.registers.PC;
 
 		assert_ne!(cpu.registers.PC, 0x0A0B);
@@ -1181,7 +1210,8 @@ mod tests {
 
 	#[test]
 	fn test_indexed_absolute() {
-		let mut cpu = initialize(load_program_absolute_indexed_with_carry);
+		let mut nes = initialize(load_program_absolute_indexed_with_carry);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		assert_eq!(cpu.registers.P.get(ProcessorStatusBits::CARRY), true);
@@ -1198,7 +1228,8 @@ mod tests {
 	#[test]
 	fn test_all_transfers() {
 		// I know, its stupid test. But more tests = better. It will all payout eventually.
-		let mut cpu = initialize(load_program_transfers);
+		let mut nes = initialize(load_program_transfers);
+		let mut cpu = nes.cpu;
 
 		assert_eq!(cpu.registers.S, 0xFF);
 		cpu.clock_tick();
@@ -1230,7 +1261,8 @@ mod tests {
 
 	#[test]
 	fn test_and() {
-		let mut cpu = initialize(load_program_and);
+		let mut nes = initialize(load_program_and);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1251,7 +1283,8 @@ mod tests {
 
 	#[test]
 	fn test_asl() {
-		let mut cpu = initialize(load_program_asl);
+		let mut nes = initialize(load_program_asl);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1289,7 +1322,8 @@ mod tests {
 
 	#[test]
 	fn test_bcc() {
-		let mut cpu = initialize(load_program_bcc);
+		let mut nes = initialize(load_program_bcc);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick(); // CLC
 		cpu.clock_tick(); // NOP
@@ -1312,7 +1346,8 @@ mod tests {
 
 	#[test]
 	fn test_bit() {
-		let mut cpu = initialize(load_program_bit);
+		let nes = initialize(load_program_bit);
+		let mut cpu = nes.cpu;
 
 		cpu.clock_tick();
 		cpu.clock_tick();
@@ -1342,17 +1377,17 @@ mod tests {
 		cpu.clock_tick();
 	}
 
-	#[test]
-	fn test_bpl() {
-		let mut cpu = initialize(load_program_bit);
-
-
-	}
+	// #[test]
+	// fn test_bpl() {
+	// 	let mut nes = initialize(load_program_bit);
+	// 	let mut cpu = nes.cpu;
+	// 	todo!();
+	// }
 
 	
 
 	// fn test_page_crossed() {
-	// 	let mut cpu = initialize();
+	// 	let mut nes = initialize();
 
 	// 	cpu.clock_tick();
 	// }
