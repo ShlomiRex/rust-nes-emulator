@@ -48,3 +48,5 @@ Others:
 - Introduction to 6502 assembly: [here](https://famicom.party/book/05-6502assembly/)
 - Basic NES program that actually works: [here](https://famicom.party/book/03-gettingstarted/)
 - Great CPU summary of almost everything: [here](https://www.nesdev.org/6502_cpu.txt)
+- Started reading PPU blogs, but this one is the best: [here](https://www.youtube.com/watch?v=-THeUXqR3zY)
+- Blog explains a lot about PPU, includes asm source code that runs basic blue background: [here](https://taywee.github.io/NerdyNights/nerdynights/asmfirstapp.html)
