@@ -3,6 +3,5 @@
 Cargo.lock
 .idea/
 *.o
-*.nes
 *.dll
 *.deb

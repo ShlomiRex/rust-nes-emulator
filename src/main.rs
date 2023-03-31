@@ -17,8 +17,9 @@ fn main() {
 	//render::sdl2_setup();
 	
 	//let path = "C:\\Users\\Shlomi\\Desktop\\Projects\\nes-test-roms\\blargg_nes_cpu_test5\\official.nes";
-	let path = "6502asm_programs/nestest.nes";
+	//let path = "6502asm_programs/nestest.nes";
 	//let path = "6502asm_programs/greenscreen.nes";
+	let path = "6502asm_programs/background.nes";
 
 	let mut nes = NES::new_open_rom_file(path);
 
