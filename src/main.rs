@@ -6,9 +6,7 @@ mod rom_parser;
 mod common;
 mod ppu;
 mod cartridge;
-mod mmu;
 mod nes;
-mod apu;
 
 use nes::NES;
 use simple_logger::SimpleLogger;

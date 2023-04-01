@@ -1,4 +1,4 @@
-use crate::{cpu::cpu::CPU, ppu::ppu::PPU, cartridge::Cartridge, mmu::MMU, rom_parser::RomParser, apu::apu::APU};
+use crate::{cpu::cpu::CPU, ppu::ppu::PPU, cartridge::Cartridge, rom_parser::RomParser};
 
 pub struct NES {
 	pub cpu: CPU
@@ -7,14 +7,11 @@ pub struct NES {
 impl NES {
 	fn new(cartridge: Cartridge) -> Self {	
 		// Shared 32KB of lower memory, shared between CPU, PPU
-		let lower_memory: [u8; 1024*32] = [0;1024*32];
-	
+
 		let ppu: PPU = PPU::new(&cartridge);
-		let apu: APU = APU::new();
 		
 		// MMU is chip inside CPU.
-		let mmu: MMU = MMU::new(lower_memory, &cartridge); // the MMU owns cartridge
-		let cpu: CPU = CPU::new(mmu, cartridge, ppu, apu);
+		let cpu: CPU = CPU::new(cartridge, ppu);
 
 		NES {
 			cpu

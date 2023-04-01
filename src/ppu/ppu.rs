@@ -34,12 +34,16 @@ impl PPU {
     // }
 
 	pub fn new(cartridge: &Cartridge) -> Self {
-		//TODO: We need to handle more than 1 CHR ROM bank. For now I just want NES program to work.
-		let first_chr_rom_bank = cartridge.chr_rom.get(0).unwrap();
-
-		// Copy CHR ROM data from cartridge to local scope, and now PPU will own this cloned data.
+		// CHR ROM must have at least 1 bank, there can't be 0 CHR ROM data. In case of testing, we fill zeros.
 		let mut chr_rom: [u8;1024*8] = [0;1024*8];
-		chr_rom.copy_from_slice(&first_chr_rom_bank[0..1024*8]);
+
+		//TODO: We need to handle more than 1 CHR ROM bank. For now I just want NES program to work.
+		let first_chr_rom_bank = cartridge.chr_rom.get(0);
+	
+		if first_chr_rom_bank.is_some() {
+			// Copy CHR ROM data from cartridge to local scope, and now PPU will own this cloned data.
+			chr_rom.copy_from_slice(&first_chr_rom_bank.unwrap()[0..1024*8]);
+		}
 
 		//TODO: Init name_table and palette table
         PPU {

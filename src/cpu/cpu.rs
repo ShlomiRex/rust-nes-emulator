@@ -1,48 +1,50 @@
 use core::panic;
 use log::{debug, error, warn};
 
-
-use crate::apu::apu::APU;
 use crate::cartridge::Cartridge;
 use crate::cpu::registers::{Registers, ProcessorStatusBits, ProcessorStatus};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
-use crate::mmu::MMU;
 use crate::ppu::ppu::PPU;
 
 use hex::FromHex;
 
-pub struct LowerMemory {
-	pub zero_page: [u8; 0xFF],
-	pub stack: [u8; 0xFF],
-	pub ram: [u8; 0x5FF]
-}
-
 pub struct CPU {
 	registers: Registers,
 	cycles: u64,
-	mmu: MMU,
 	cartridge: Cartridge,
 	ppu: PPU,
-	lower_memory: LowerMemory,
-	apu: APU
+	lower_memory: [u8;1024*32],
+	
+	// The CPU can only access up to 2 program memory banks and 1 character bank at once. The MMU can switch between diffirent banks.
+	active_prgbank_number_lower: u8,
+	active_prgbank_number_upper: u8,
+	active_chrbank_number: u8
 }
 
 impl CPU {
-	pub fn new(mmu: MMU, cartridge: Cartridge, ppu: PPU, apu: APU) -> Self {
+	pub fn new(cartridge: Cartridge, ppu: PPU) -> Self {
 		let registers: Registers = Registers::default();
-		let lower_memory = LowerMemory { 
-			zero_page: [0;0xFF], 
-			stack: [0;0xFF], 
-			ram: [0;0x5FF] 
-		};
+
+		// Defautl configuration: first bank goes to lower memory, second bank goes to upper memory
+		let mut active_prgbank_number_lower = 0;
+		let mut active_prgbank_number_upper = 1;
+
+		// If there is only 1 bank, we MIRROR THE MEMORY for both lower 16KB and upper 16KB.
+		if cartridge.num_prg_banks == 1 {
+			active_prgbank_number_lower = 0;
+			active_prgbank_number_upper = 0;
+		}
+
 		let mut cpu = CPU {
 			registers,
 			cycles: 0,
-			mmu,
 			cartridge,
 			ppu,
-			lower_memory,
-			apu
+			lower_memory: [0;1024*32],
+			active_prgbank_number_lower,
+			active_prgbank_number_upper,
+			active_chrbank_number: 0
+
 		};
 		cpu.res_interrupt();
 		cpu
@@ -853,12 +855,39 @@ impl CPU {
 
 	/// Generic function to read memory from CPU address space.
 	fn read_memory(&mut self, addr: u16) -> u8 {
-		self.mmu.read_request(&self.cartridge, &mut self.ppu, addr, &self.lower_memory)
+		match addr {
+			// High 32KB
+			0x8000..=0xBFFF => {
+				// Lower PRG ROM
+				self.cartridge.read_prg_rom(self.active_prgbank_number_lower, addr - 0x8000)
+			}
+
+			0xC000..=0xFFFF => {
+				// Upper PRG ROM
+				self.cartridge.read_prg_rom(self.active_prgbank_number_upper, addr - 0xC000)
+			}
+			_ => {
+				self.lower_memory[addr as usize]
+			}
+		}
 	}
 
 	/// Generic function to write memory from CPU address space.
 	fn write_memory(&mut self, addr: u16, value: u8) {
-		self.mmu.write_request(&mut self.ppu, addr, value, &mut self.lower_memory, &mut self.apu);
+		match addr {
+			// High 32KB
+			0x8000..=0xBFFF => {
+				//TODO: We should never write to ROM
+				todo!();
+			}
+			0xC000..=0xFFFF => {
+				//TODO: We should never write to ROM
+				todo!();
+			}
+			_ => {
+				self.lower_memory[addr as usize] = value;
+			}
+		}
 	}
 
 }
