@@ -68,6 +68,87 @@ impl PPU {
 	pub fn write_register(&mut self, addr: u16, value: u8) {
 		self.registers[addr as usize] = value;
 	}
+
+	/// Returns the pattern tile at given index (0x00-0xFF) from left/right (parameter) pattern table.
+	fn get_pattern_tile(&self, tile_index: u8, left_table: bool) -> &[u8] {
+		if left_table {
+			// Each pattern tile is 16 bytes in size. We jump by 16 bytes.
+			let i = (tile_index * 16) as usize;
+			&self.chr_rom[i..i+16]
+		} else {
+			todo!();
+		}
+	}
+
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::{cartridge::Cartridge, rom_parser::RomParser};
 
+    use super::PPU;
+
+	#[test]
+	fn test_get_pattern_tile() {
+		let path = "6502asm_programs/nestest/nestest.nes";
+		let mut rom_parser = RomParser::new();
+		rom_parser.parse(path);
+		let cartridge: Cartridge = Cartridge::new_with_parser(rom_parser);
+		let ppu = PPU::new(&cartridge);
+
+		let first_tile = ppu.get_pattern_tile(0, true);
+		assert!(first_tile.iter().all(|&x| x == 0));
+
+		let third_tile = ppu.get_pattern_tile(2, true);
+		print_tile(third_tile);
+	}
+
+	fn print_tile(tile: &[u8]) {
+		println!("Lower 8 bytes:");
+		for (i,b) in (&tile[0..8]).iter().enumerate() {
+			let binary_str = format!("{:008b}", b); // pad with zeros to 8 bits
+			let mut new_str = String::new();
+			for bit in binary_str.chars() {
+				new_str.push(bit);
+				new_str.push('0');
+				new_str.push(' ');
+			}
+			println!("Address {:#X}: \t{}\t{}", i, binary_str, new_str);
+		}
+
+		println!("Upper 8 bytes:");
+		for (i,b) in (&tile[8..16]).iter().enumerate() {
+			let binary_str = format!("{:008b}", b); // pad with zeros to 8 bits
+			let mut new_str = String::new();
+			for bit in binary_str.chars() {
+				new_str.push('0');
+				new_str.push(bit);
+				new_str.push(' ');
+			}
+			println!("Address {:#X}: \t{}\t{}", i+8, binary_str, new_str);
+		}
+
+		println!("Combined and final tile:");
+		for i in 0..8 {
+			let lower_byte = &tile[i];
+			let upper_byte = &tile[i+8];
+
+			let binary_str_lower = format!("{:008b}", lower_byte); // pad with zeros to 8 bits
+			let binary_str_upper = format!("{:008b}", upper_byte); // pad with zeros to 8 bits
+
+			let mut new_str = String::new();
+			for i in 0..8 {
+				// let lower_bit = get_bit(*lower_byte, i);
+				// let upper_bit = get_bit(*upper_byte, i);
+				// new_str.push(char::from_digit(lower_bit as u32, 10).unwrap());
+				// new_str.push(char::from_digit(upper_bit as u32, 10).unwrap());
+				// new_str.push(' ');
+
+				new_str.push(binary_str_lower.chars().nth(i).unwrap());
+				new_str.push(binary_str_upper.chars().nth(i).unwrap());
+				new_str.push(' ');
+			}
+			println!("{}", new_str);
+		}
+	}
+}

@@ -122,9 +122,6 @@ impl CPU {
 				M -> A
 				*/
 				let fetched_memory = self.fetch_memory(&addrmode);
-				if fetched_memory != 0 {
-					println!("ok");
-				}
 				if *instr == Instructions::LDX {
 					self.registers.X = fetched_memory;
 				} else if *instr == Instructions::LDY {
@@ -855,6 +852,7 @@ impl CPU {
 
 	/// Generic function to read memory from CPU address space.
 	fn read_memory(&mut self, addr: u16) -> u8 {
+		debug!("Reading memory: [{:#X}]", addr);
 		match addr {
 			// High 32KB
 			0x8000..=0xBFFF => {
@@ -885,6 +883,7 @@ impl CPU {
 				todo!();
 			}
 			_ => {
+				debug!("Writing memory: [{:#X}] = {:#X}", addr, value);
 				self.lower_memory[addr as usize] = value;
 			}
 		}
