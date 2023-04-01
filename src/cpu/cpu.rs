@@ -2,6 +2,7 @@ use core::panic;
 use log::{debug, error, warn};
 
 
+use crate::apu::apu::APU;
 use crate::cartridge::Cartridge;
 use crate::cpu::registers::{Registers, ProcessorStatusBits, ProcessorStatus};
 use crate::cpu::decoder::{OopsCycle, Instructions, AddressingMode, decode_opcode};
@@ -22,11 +23,12 @@ pub struct CPU {
 	mmu: MMU,
 	cartridge: Cartridge,
 	ppu: PPU,
-	lower_memory: LowerMemory
+	lower_memory: LowerMemory,
+	apu: APU
 }
 
 impl CPU {
-	pub fn new(mmu: MMU, cartridge: Cartridge, ppu: PPU) -> Self {
+	pub fn new(mmu: MMU, cartridge: Cartridge, ppu: PPU, apu: APU) -> Self {
 		let registers: Registers = Registers::default();
 		let lower_memory = LowerMemory { 
 			zero_page: [0;0xFF], 
@@ -39,7 +41,8 @@ impl CPU {
 			mmu,
 			cartridge,
 			ppu,
-			lower_memory
+			lower_memory,
+			apu
 		};
 		cpu.res_interrupt();
 		cpu
@@ -117,6 +120,9 @@ impl CPU {
 				M -> A
 				*/
 				let fetched_memory = self.fetch_memory(&addrmode);
+				if fetched_memory != 0 {
+					println!("ok");
+				}
 				if *instr == Instructions::LDX {
 					self.registers.X = fetched_memory;
 				} else if *instr == Instructions::LDY {
@@ -672,12 +678,12 @@ impl CPU {
 		decoded[0]
 	}
 
-	fn fetch_absolute_indexed(&self, index: u8) -> u8 {
+	fn fetch_absolute_indexed(&mut self, index: u8) -> u8 {
 		let addr = self.read_instruction_absolute_indexed_address(index);
 		self.read_memory(addr)
 	}
 
-	fn fetch_zero_page_indexed(&self, index: u8) -> u8 {
+	fn fetch_zero_page_indexed(&mut self, index: u8) -> u8 {
 		let instr_addr = self.read_instruction_zero_page_address();
 		let addr = instr_addr.wrapping_add(index);
 		self.read_memory(addr as u16)
@@ -685,7 +691,7 @@ impl CPU {
 
 	/// Fetch memory required by the instruction. This can be in ROM (immediate, for example) or in RAM (absolute, for example), or CPU register.
 	/// All load instructions use this.
-	fn fetch_memory(&self, addrmode: &AddressingMode) -> u8 {
+	fn fetch_memory(&mut self, addrmode: &AddressingMode) -> u8 {
 		match addrmode {
 			AddressingMode::IMPLIED => {
 				panic!("Instruction with implied addressing mode should never ask to fetch memory.");
@@ -741,7 +747,7 @@ impl CPU {
 
 	/// Extract the address from instruction. This function will access ROM and RAM, aswell as indirect addressing.
 	/// All store instructions use this.
-	fn fetch_instruction_address(&self, addrmode: AddressingMode) -> u16 {
+	fn fetch_instruction_address(&mut self, addrmode: AddressingMode) -> u16 {
 		match addrmode {
 			AddressingMode::IMMEDIATE => {
 				let res = self.read_memory(self.registers.PC + 1) as u16;
@@ -758,22 +764,22 @@ impl CPU {
 	}
 
 	/// Reads address stored in ROM at the current PC.
-	fn read_instruction_absolute_address(&self) -> u16 {
+	fn read_instruction_absolute_address(&mut self) -> u16 {
 		self.read_address_from_memory(self.registers.PC + 1)
 	}
 
 	/// Adds absolute address with index.
-	fn read_instruction_absolute_indexed_address(&self, index: u8) -> u16 {
+	fn read_instruction_absolute_indexed_address(&mut self, index: u8) -> u16 {
 		self.read_instruction_absolute_address() + (index as u16)
 	}
 
 	/// Reads zero-page address stored in ROM at the current PC.
-	fn read_instruction_zero_page_address(&self) -> u8 {
+	fn read_instruction_zero_page_address(&mut self) -> u8 {
 		self.read_memory(self.registers.PC + 1)
 	}
 
 	/// Returns address stored in memory, from the absolute address in ROM, at the current PC.
-	fn read_instruction_indirect_address(&self) -> u16 {
+	fn read_instruction_indirect_address(&mut self) -> u16 {
 		let indirect_addr = self.read_instruction_absolute_address();
 		self.read_address_from_memory(indirect_addr)
 	}
@@ -812,14 +818,14 @@ impl CPU {
 	}
 
 	/// Read 2 bytes from memory that represent an address
-	fn read_address_from_memory(&self, addr: u16) -> u16 {
+	fn read_address_from_memory(&mut self, addr: u16) -> u16 {
 		let lsb = self.read_memory(addr) as u16;
 		let msb = self.read_memory(addr + 1) as u16;
 		(msb << 8) | lsb
 	}
 
 	/// Calculate PC after applying relative offset. The offset is represented as signed integer.
-	fn read_instruction_relative_address(&self) -> u16 {
+	fn read_instruction_relative_address(&mut self) -> u16 {
 		let offset = self.read_memory(self.registers.PC + 1);
 		debug!("Relative offset: {:}", (offset as i8) as i16);
 		self.registers.PC.wrapping_add_signed((offset as i8) as i16)
@@ -846,13 +852,13 @@ impl CPU {
 	}
 
 	/// Generic function to read memory from CPU address space.
-	fn read_memory(&self, addr: u16) -> u8 {
-		self.mmu.read_request(&self.cartridge, &self.ppu, addr, &self.lower_memory)
+	fn read_memory(&mut self, addr: u16) -> u8 {
+		self.mmu.read_request(&self.cartridge, &mut self.ppu, addr, &self.lower_memory)
 	}
 
 	/// Generic function to write memory from CPU address space.
 	fn write_memory(&mut self, addr: u16, value: u8) {
-		self.mmu.write_request(&mut self.ppu, addr, value, &mut self.lower_memory);
+		self.mmu.write_request(&mut self.ppu, addr, value, &mut self.lower_memory, &mut self.apu);
 	}
 
 }

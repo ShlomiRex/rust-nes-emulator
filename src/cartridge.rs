@@ -13,7 +13,7 @@ pub struct Cartridge {
 
 	// cartridge ROM, RAM of PRG/CHR
 	prg_rom: Vec<PRG_Bank>,
-	chr_rom: Vec<CHR_Bank>
+	pub chr_rom: Vec<CHR_Bank>
 }
 
 impl Cartridge {

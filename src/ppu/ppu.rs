@@ -1,13 +1,15 @@
+use crate::{common::{self, bits, CHR_Bank}, cartridge::Cartridge};
+
 
 
 pub struct PPU {
-    // chr_rom: Vec<CHR_Bank>,
 	// active_chr_rom_num: u8,
-	// palette_table: [u8; 32],
-	// vram: [u8; 2048],
 	// oam_data: [u8; 256],
 	// mirroring: MirrorType
 	registers: [u8; 8],
+	chr_rom: [u8;1024*8],					// 	address space: 0x0000-0x1FFF
+	name_table: [u8; 2048], 		// vram		address space: 0x2000-0x3EFF
+	palette_table: [u8; 32],				// 	address space: 0x3F00-0x3FFF
 }
 
 /*
@@ -31,14 +33,32 @@ impl PPU {
     //     }
     // }
 
-	pub fn new() -> Self {
+	pub fn new(cartridge: &Cartridge) -> Self {
+		//TODO: We need to handle more than 1 CHR ROM bank. For now I just want NES program to work.
+		let first_chr_rom_bank = cartridge.chr_rom.get(0).unwrap();
+
+		// Copy CHR ROM data from cartridge to local scope, and now PPU will own this cloned data.
+		let mut chr_rom: [u8;1024*8] = [0;1024*8];
+		chr_rom.copy_from_slice(&first_chr_rom_bank[0..1024*8]);
+
+		//TODO: Init name_table and palette table
         PPU {
-			registers: [0;8]
+			registers: [0;8],
+			chr_rom,
+			name_table: [0;2048],
+			palette_table: [0;32]
         }
     }
 
-	pub fn read_register(&self, addr: u16) -> u8 {
-		self.registers[addr as usize]
+	pub fn read_register(&mut self, addr: u16) -> u8 {
+		let result = self.registers[addr as usize];
+
+		// clear bit 7
+		let mut cleared_bit_7 = result;
+		bits::set(&mut cleared_bit_7, 7, false);
+		self.registers[addr as usize] = cleared_bit_7;
+
+		result
 	}
 
 	pub fn write_register(&mut self, addr: u16, value: u8) {
