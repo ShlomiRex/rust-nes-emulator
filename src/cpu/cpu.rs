@@ -852,8 +852,7 @@ impl CPU {
 
 	/// Generic function to read memory from CPU address space.
 	fn read_memory(&mut self, addr: u16) -> u8 {
-		debug!("Reading memory: [{:#X}]", addr);
-		match addr {
+		let result = match addr {
 			// High 32KB
 			0x8000..=0xBFFF => {
 				// Lower PRG ROM
@@ -864,10 +863,16 @@ impl CPU {
 				// Upper PRG ROM
 				self.cartridge.read_prg_rom(self.active_prgbank_number_upper, addr - 0xC000)
 			}
+			0x2002 => {
+				self.ppu.ppu_status
+			}
 			_ => {
+				// TODO: Phase out big memory block, we want PPU address space aswell........ RAM, ZEROPAGE, STACK...
 				self.lower_memory[addr as usize]
 			}
-		}
+		};
+		debug!("Reading memory: [{:#X}] = {:#X}", addr, result);
+		result
 	}
 
 	/// Generic function to write memory from CPU address space.
