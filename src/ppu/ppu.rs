@@ -12,7 +12,7 @@ pub struct PPU {
 	palette_table: [u8; 32],				// 	address space: 0x3F00-0x3FFF (Background palette: 0x3F00-0x3F10 and Sprite palette: 0x3F10-0x3FFF)
 
 
-	pub ppu_status: u8
+	pub ppu_status: u8,
 }
 
 /*

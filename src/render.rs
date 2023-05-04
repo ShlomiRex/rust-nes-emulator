@@ -39,7 +39,7 @@ pub fn sdl2_setup() {
                 },
 				Event::Window {..} => {
 					(win_width, win_height) = canvas.window_mut().size();
-					println!("Window size changed");
+					//println!("Window size changed");
 				}
                 _ => {}
             }
