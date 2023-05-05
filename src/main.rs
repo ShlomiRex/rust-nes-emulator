@@ -39,9 +39,8 @@ fn main() {
 
     let mut nes = NES::new_open_rom_file(path);
 
-    let allow_stepping = false;
+    let allow_stepping = true;
     let stdin = io::stdin();
-
 
     loop {
 		let value = closed_window_mutex.lock().unwrap();
